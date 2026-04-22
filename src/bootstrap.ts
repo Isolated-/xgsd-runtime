@@ -32,8 +32,13 @@ export type RuntimePresetFunction = () => RuntimePreset
 export type RuntimePresetFilterFunction = (preset: RuntimePreset, filterArgs: {}) => RuntimePreset
 
 // TODO: remove EventEmitter2 as a dependency
-export const bootstrap = async (opts: {packagePath: string; preset: RuntimePreset; stream: EventBusAdapter}) => {
-  const {packagePath, preset} = opts
+export const bootstrap = async (opts: {
+  packagePath: string
+  configPath: string
+  preset: RuntimePreset
+  stream: EventBusAdapter
+}) => {
+  const {packagePath, configPath, preset} = opts
 
   const bus = new EventBus(
     new EventEmitter2({
@@ -42,7 +47,6 @@ export const bootstrap = async (opts: {packagePath: string; preset: RuntimePrese
   )
 
   // TODO: wrap this a function to resolve .json and .yaml/.yml
-  const configPath = join(packagePath, 'config.yaml')
   const schema = Joi.object()
   const config = new ConfigParser(configPath)
     .load()
