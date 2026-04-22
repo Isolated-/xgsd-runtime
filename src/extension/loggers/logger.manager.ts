@@ -1,14 +1,13 @@
-import EventEmitter2 from 'eventemitter2'
 import {Manager} from '../../types/generics/manager.interface'
-import {Logger, LogMessage} from '../../types/interfaces/logger.interface'
-import {emit, runExit, runInit} from '../util'
+import {Logger} from '../../types/interfaces/logger.interface'
+import {runExit, runInit} from '../util'
 import {Context} from '../../config'
-import {EventBus} from '../../event'
+import {EventBus, EventBusAdapter} from '../../event'
 
 export class LoggerManager implements Manager {
   constructor(
     private loggers: Logger[],
-    private bus: EventBus<EventEmitter2>,
+    private bus: EventBus<EventBusAdapter>,
   ) {}
 
   // this is plugin focused

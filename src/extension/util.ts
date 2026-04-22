@@ -1,15 +1,14 @@
 import {SetupContainer} from './setup'
 import {EventHandler} from './lifecycle'
-import {EventEmitter2} from 'eventemitter2'
 import {PluginRegistry} from './plugins/plugin.registry'
 import {LoggerRegistry} from './loggers/logger.registry'
 import {Block, Context} from '../config'
 import {RunFn, SourceData} from '@xgsd/engine'
 import {Hooks} from '../types/hooks.types'
 import {FatalError, FatalErrorCode} from '../error'
-import {EventBus} from '../event'
+import {EventBus, EventBusAdapter} from '../event'
 import {SystemEvent} from '../types/events.types'
-import {FactoryInput, Factory, PluginInput, LoggerInput, ExecutorInput} from '../types/factory.types'
+import {FactoryInput, Factory} from '../types/factory.types'
 import {RuntimePreset} from '../bootstrap'
 import {join} from 'path'
 
@@ -65,7 +64,7 @@ export type Extension = {
   on?: (e: string, handler: EventHandler) => void
 }
 
-export const runInit = async <T extends Extension>(items: T[], ctx: Context, bus?: EventBus<EventEmitter2>) => {
+export const runInit = async <T extends Extension>(items: T[], ctx: Context, bus?: EventBus<EventBusAdapter>) => {
   for (const item of items) {
     if (item.init) {
       await item.init(ctx)
@@ -81,7 +80,7 @@ export const runInit = async <T extends Extension>(items: T[], ctx: Context, bus
   }
 }
 
-export const runExit = async <T extends Extension>(items: T[], ctx: Context, bus?: EventBus<EventEmitter2>) => {
+export const runExit = async <T extends Extension>(items: T[], ctx: Context, bus?: EventBus<EventBusAdapter>) => {
   for (const item of items) {
     if (item.exit) {
       await item.exit(ctx)
@@ -169,7 +168,7 @@ export const loadUserSetup = async (context: Context, setup: SetupContainer) => 
  *  @returns
  */
 export const createRuntime = async (opts: {
-  bus?: EventBus<EventEmitter2>
+  bus?: EventBus<EventBusAdapter>
   ctx: Context
   preset: RuntimePreset
   setupContainer?: SetupContainer

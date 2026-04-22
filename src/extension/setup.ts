@@ -6,11 +6,10 @@ import {ExecutorInput, LoggerInput, PluginInput} from '../types/factory.types'
 import {resolveFactory} from './util'
 import {LoggerRegistry} from './loggers/logger.registry'
 import {LoggerManager} from './loggers/logger.manager'
-import EventEmitter2 from 'eventemitter2'
 import {Context} from '../config'
 import {Hooks} from '../types/hooks.types'
 import {Logger} from '../types/interfaces/logger.interface'
-import {EventBus} from '../event'
+import {EventBus, EventBusAdapter} from '../event'
 import {Executor} from '../types/generics/executor.interface'
 
 export type SetupOpts = {
@@ -18,13 +17,13 @@ export type SetupOpts = {
   pluginRegistry?: PluginRegistry
   loggerRegistry?: LoggerRegistry
 
-  bus?: EventBus<EventEmitter2>
+  bus?: EventBus<EventBusAdapter>
 }
 
 export class SetupContainer {
   private pluginRegistry: PluginRegistry
   private loggerRegistry: LoggerRegistry
-  private bus: EventBus<EventEmitter2>
+  private bus: EventBus<EventBusAdapter>
 
   private executorFactory?: (ctx: Context) => Executor
 
@@ -51,7 +50,8 @@ export class SetupContainer {
     loggerManager: LoggerManager
     executor: Executor
   }> {
-    // todo: re-add InProcessExecutor()
+    // TODO: this line shouldn't be here anymore
+    // presets are configured/controlled by apps
     const defaultExecutor = context.lite === true ? new InProcessExecutor() : new ProcessExecutor()
 
     const plugins: Hooks[] = this.pluginRegistry.build(context)

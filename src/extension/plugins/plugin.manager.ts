@@ -1,14 +1,13 @@
 import {Manager} from '../../types/generics/manager.interface'
 import {Hooks} from '../../types/hooks.types'
 import {emit, runExit, runInit} from '../util'
-import EventEmitter2 from 'eventemitter2'
 import {Context} from '../../config'
-import {EventBus} from '../../event'
+import {EventBus, EventBusAdapter} from '../../event'
 
 export class PluginManager implements Manager {
   constructor(
     private plugins: Hooks[],
-    private bus: EventBus<EventEmitter2>,
+    private bus: EventBus<EventBusAdapter>,
   ) {}
 
   async init(ctx: Context): Promise<void> {

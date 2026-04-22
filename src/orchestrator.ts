@@ -2,9 +2,8 @@ import {RunState} from './types/state.types'
 import {executeBlocks, ExecutionMode, Runnable} from './process/orchestration.process'
 import {ProjectEvent, BlockEvent} from './types/events.types'
 import {Executor} from './types/generics/executor.interface'
-import EventEmitter2 from 'eventemitter2'
 import {FatalError} from './error'
-import {EventBus} from './event'
+import {EventBus, EventBusAdapter} from './event'
 import {SourceData} from '@xgsd/engine'
 import {Context} from './config'
 import {Block} from './config'
@@ -15,7 +14,7 @@ export class Orchestrator {
   constructor(
     public context: Context,
     private executor: Executor,
-    private bus: EventBus<EventEmitter2>,
+    private bus: EventBus<EventBusAdapter>,
   ) {}
 
   async before(): Promise<void> {

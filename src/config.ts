@@ -3,8 +3,6 @@ import * as path from 'path'
 import {join} from 'path'
 import * as yaml from 'yaml'
 import {deepmerge2} from './util/object.util'
-import {createRequire} from 'module'
-import {v4} from 'uuid'
 import {createHash} from 'crypto'
 import {SourceData} from '@xgsd/engine'
 import {EventBus} from './event'
@@ -119,7 +117,7 @@ export class ContextBusStage<T extends Record<string, unknown>> {
 export class ContextFinalStage<T extends Record<string, unknown>> {
   constructor(private ctx: Partial<Context<T>>) {}
 
-  id(generator: () => string = v4): this {
+  id(generator: () => string): this {
     this.ctx.id = generator()
     return this
   }

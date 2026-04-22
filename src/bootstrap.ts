@@ -1,9 +1,7 @@
-import {EventEmitter2} from 'eventemitter2'
 import {attachManagerLifecycleListeners, bindEventBusToLoggerManager} from './extension/lifecycle'
 import {createRuntime} from './extension/util'
 import {ConfigParser, Context, createContext} from './config'
 import * as Joi from 'joi'
-import {join} from 'path'
 import {SourceData} from '@xgsd/engine'
 import {EventBus, EventBusAdapter} from './event'
 import {Orchestrator} from './orchestrator'
@@ -33,20 +31,16 @@ export type RuntimePresetFilterFunction = (preset: RuntimePreset, filterArgs: {}
 
 // TODO: remove EventEmitter2 as a dependency
 export const bootstrap = async (opts: {
+  id: () => string
   packagePath: string
   configPath: string
   preset: RuntimePreset
   stream: EventBusAdapter
 }) => {
-  const {packagePath, configPath, preset} = opts
+  const {packagePath, configPath, preset, stream, id} = opts
 
-  const bus = new EventBus(
-    new EventEmitter2({
-      wildcard: true,
-    }),
-  )
+  const bus = new EventBus(stream)
 
-  // TODO: wrap this a function to resolve .json and .yaml/.yml
   const schema = Joi.object()
   const config = new ConfigParser(configPath)
     .load()
@@ -62,7 +56,7 @@ export const bootstrap = async (opts: {
   const ctx = createContext(packagePath)
     .config(config)
     .bus(bus)
-    .id()
+    .id(id)
     .name()
     .version()
     .data()

@@ -1,8 +1,7 @@
-import {EventEmitter2} from 'eventemitter2'
 import {ProjectEvent, BlockEvent, SystemEvent} from '../types/events.types'
 import {Manager} from '../types/generics/manager.interface'
 import {LoggerManager} from './loggers/logger.manager'
-import {EventBus} from '../event'
+import {EventBus, EventBusAdapter} from '../event'
 
 const EVENT_MAP = {
   // project events
@@ -30,7 +29,7 @@ export type EventHandler<T = unknown> = (payload: T) => void | Promise<void>
  *  @param {Manager} manager
  *  @param {ProjectContext} context
  */
-export const attachManagerLifecycleListeners = (manager: Manager, bus: EventBus<EventEmitter2>) => {
+export const attachManagerLifecycleListeners = (manager: Manager, bus: EventBus<EventBusAdapter>) => {
   const disposers: Array<() => void> = []
 
   for (const [event, handler] of Object.entries(EVENT_MAP)) {
@@ -49,7 +48,7 @@ export const attachManagerLifecycleListeners = (manager: Manager, bus: EventBus<
   }
 }
 
-export const bindEventBusToLoggerManager = (bus: EventBus<EventEmitter2>, manager: LoggerManager) => {
+export const bindEventBusToLoggerManager = (bus: EventBus<EventBusAdapter>, manager: LoggerManager) => {
   const disposers: Array<() => void> = []
 
   const off = bus.on('*.*', async (event: any) => {
