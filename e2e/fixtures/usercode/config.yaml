@@ -1,0 +1,25 @@
+# metadata
+name: Test project
+
+# user metadata
+# can be anything
+# unused by xGSD
+metadata:
+  production: false
+
+# runtime/orchestration options
+mode: chain
+
+# data is accessible in all blocks
+data:
+  url: https://api.open-meteo.com/v1/forecast
+
+blocks:
+  - run: getTemperature
+    input:
+      lat: 51.5
+      lon: -0.18
+
+  - run: saveTemperature
+    input:
+      file: e2e/fixtures/usercode/temp.txt

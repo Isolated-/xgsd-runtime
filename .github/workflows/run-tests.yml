@@ -24,3 +24,5 @@ jobs:
 
       - run: yarn install --frozen-lockfile
       - run: yarn test
+      - run: yarn test:integration
+      - run: yarn test:e2e

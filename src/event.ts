@@ -22,14 +22,13 @@ export class EventBus<T extends EventBusAdapter, E extends Events = Events> {
   on<K extends keyof E>(event: K, handler: (e: EventEnvelope<K & string, E[K]>) => void | Promise<void>): () => void {
     const wrapped = async (payload: E[K]) => {
       await handler({
-        event: event as K & string,
-        payload,
+        ...(payload as any),
       })
     }
 
     this.stream.on(event as string, wrapped)
 
-    return () => this.off(event, wrapped as any)
+    return () => this.off(event, handler as any)
   }
 
   off<K extends keyof E>(event: K, handler: (...args: any[]) => void): void {

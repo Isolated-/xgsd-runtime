@@ -1,4 +1,4 @@
-import * as api from '../src/index.js'
+import * as api from '../index.js'
 
 test('should export the correct API', () => {
   // sdk functions/exports

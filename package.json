@@ -24,11 +24,14 @@
   "scripts": {
     "build": "yarn clean && tsup",
     "clean": "rm -rf dist",
-    "test": "yarn clean && jest"
+    "test": "yarn clean && jest ./src",
+    "test:integration": "yarn clean && jest ./tests",
+    "test:e2e": "yarn clean && jest ./e2e"
   },
   "devDependencies": {
     "@oclif/prettier-config": "^0.2.1",
     "@types/jest": "^30.0.0",
+    "eventemitter2": "^6.4.9",
     "jest": "^29.x",
     "ts-jest": "^29.x",
     "ts-node": "^10.9.2",

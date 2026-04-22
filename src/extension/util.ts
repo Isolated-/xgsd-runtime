@@ -11,17 +11,30 @@ import {SystemEvent} from '../types/events.types'
 import {FactoryInput, Factory} from '../types/factory.types'
 import {RuntimePreset} from '../bootstrap'
 import {join} from 'path'
+import {UserModule} from './user-module'
 
-export type UserSetupFn = (ctx: Context, setup: SetupContainer) => Promise<void>
+export type UserSetupFn = (mod: UserModule, setup: SetupContainer) => Promise<void>
 export type ContextLike = {
   packagePath: string
   entry: string
   blockCount: number
 }
 
+// super simple map cache
+const moduleCache = new Map<string, UserModule>()
+
 export async function importUserModule<T extends ContextLike = ContextLike>(context: T) {
+  if (moduleCache.has(context.entry)) {
+    console.log(`cache hit for ${context.entry}`)
+    return moduleCache.get(context.entry)
+  }
+
   try {
     const mod = await import(context.entry)
+
+    moduleCache.set(context.entry, mod)
+    console.log(`cache updated for ${context.entry}`)
+
     return mod
   } catch (e: any) {
     // clean this up
@@ -47,12 +60,6 @@ export async function importUserModuleRunFn<T extends ContextLike = ContextLike>
   }
 
   return mod[block.run] as RunFn<SourceData>
-}
-
-export type Lifecycle = {
-  name?: string
-  init?: (ctx: any) => Promise<void> | void
-  exit?: (ctx: any) => Promise<void> | void
 }
 
 export type ExtensionType = 'plugin' | 'logger'
@@ -89,7 +96,7 @@ export const runExit = async <T extends Extension>(items: T[], ctx: Context, bus
 
     if (bus) {
       await bus.emit<SystemEvent.ExtensionUnloaded>(SystemEvent.ExtensionUnloaded, {
-        name: item.name!,
+        name: item.name ?? 'anonymous',
         core: !!item.core,
         type: item.type!,
       })
@@ -102,7 +109,6 @@ export const resolveFactory = <T = unknown>(
   opts?: {
     type: 'logger' | 'plugin' | 'executor'
     core?: boolean
-    env?: 'dev' | 'test' | 'production'
   },
 ) => {
   return (ctx: Context) => {
@@ -149,9 +155,7 @@ export const buildFactories = <T = unknown>(factories: Factory<T>[], ctx: Contex
     .filter((factory): factory is T => !!factory)
 }
 
-export const loadUserSetup = async (context: Context, setup: SetupContainer) => {
-  const userModule = await importUserModule(context)
-
+export const loadUserSetup = async (userModule: UserModule, setup: SetupContainer) => {
   if (typeof userModule.setup === 'function') {
     const opts = await userModule.setup(setup)
     return opts
@@ -195,8 +199,15 @@ export const createRuntime = async (opts: {
     setup.executor(preset.executor)
   }
 
+  // remove this just depend on userCodeFn
+  const userModule = await importUserModule(ctx)
   const userCodeFn = opts.userCodeFn ?? loadUserSetup
-  await userCodeFn(ctx, setup)
+
+  try {
+    await userCodeFn(userModule, setup)
+  } catch (error) {
+    // TODO: determine how to handle this cleanly
+  }
 
   return setup.build(ctx)
 }

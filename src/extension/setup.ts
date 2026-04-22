@@ -1,5 +1,3 @@
-import {InProcessExecutor} from '../executors/in-process.executor'
-import {ProcessExecutor} from '../executors/process.executor'
 import {PluginRegistry} from './plugins/plugin.registry'
 import {PluginManager} from './plugins/plugin.manager'
 import {ExecutorInput, LoggerInput, PluginInput} from '../types/factory.types'
