@@ -1,10 +1,13 @@
 import {merge} from 'ts-deepmerge'
 
 export const deepmerge2 = (
-  a: Record<string, unknown> = {},
-  b: Record<string, unknown> = {},
+  a: Record<string, unknown> | null = {},
+  b: Record<string, unknown> | null = {},
 ): Record<string, unknown> => {
-  return merge(a, b)
+  if (!a && !b) return {}
+  if (!a && b) return b
+  if (!b && a) return a
+  return merge(a!, b!)
 }
 
 export const isEmptyObject = (obj: object | null | undefined): boolean => {
