@@ -1,7 +1,7 @@
 import {RunState} from '../types/state.types'
 import {FatalError, FatalErrorCode} from '../error'
 import {BlockEvent} from '../types/events.types'
-import {retry, WrappedError, RetryAttempt, SourceData} from '@xgsd/engine'
+import {retry, WrappedError, RetryAttempt, SourceData, withTimeout} from '@xgsd/engine'
 import {getBackoffStrategy} from '../backoff'
 import {Events} from '../types/events.types'
 import {Block, Context} from '../config'
@@ -91,7 +91,7 @@ export async function processBlock(opts: {
 
   let errors: WrappedError[] = []
   const result = await retry(block.input, block.fn!, retries, {
-    timeout,
+    timeoutWrapper: withTimeout(timeout),
     backoff: delayFn,
     onAttempt: async (a) => {
       attempt?.(a)

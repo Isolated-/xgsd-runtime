@@ -1031,10 +1031,10 @@
   dependencies:
     "@types/yargs-parser" "*"
 
-"@xgsd/engine@0.1.0":
-  version "0.1.0"
-  resolved "https://registry.yarnpkg.com/@xgsd/engine/-/engine-0.1.0.tgz#74a9b55072a491c8033ec4a833c88e3503dd7636"
-  integrity sha512-kNbX1lMiIpReUMHEVSBiKD+iVb9UsL2ZZ9Qb6OrHiQJGrMa/67lNYYGXJE4NGIfv85vaEmHCv7H2LLLGzjiOKQ==
+"@xgsd/engine@0.1.1":
+  version "0.1.1"
+  resolved "https://registry.yarnpkg.com/@xgsd/engine/-/engine-0.1.1.tgz#760fe21f6bf0c44592fc2613d4146e0d7492d0fd"
+  integrity sha512-Tovh4Q6nGRM6TAl67szODYn+QL8wkYYPtp5MZe2SGshPQJK3PsorIR3I3k8cRPCwsWSJnkwcuih60DMz9CLSWg==
 
 acorn-walk@^8.1.1:
   version "8.3.5"
@@ -1377,7 +1377,7 @@ dedent@^1.0.0:
   resolved "https://registry.yarnpkg.com/dedent/-/dedent-1.7.2.tgz#34e2264ab538301e27cf7b07bf2369c19baa8dd9"
   integrity sha512-WzMx3mW98SN+zn3hgemf4OzdmyNhhhKz5Ay0pUfQiMQ3e1g+xmTJWp/pKdwKVXhdSkAEGIIzqeuWrL3mV/AXbA==
 
-deepmerge@^4.2.2, deepmerge@^4.3.1:
+deepmerge@^4.2.2:
   version "4.3.1"
   resolved "https://registry.yarnpkg.com/deepmerge/-/deepmerge-4.3.1.tgz#44b5f2147cd3b00d4b56137685966f26fd25dd4a"
   integrity sha512-3sUqbMEc77XqpdNO7FRyRog+eW3ph+GYCbj+rK+uYyRMuwsVy0rMiVtPn+QJlKFvWP/1PYpapqYn0Me2knFn+A==

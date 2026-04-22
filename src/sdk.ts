@@ -1,5 +1,5 @@
 // this will eventually become its own library (@xgsd/sdk)
-import {retry as coreRetry, execute as coreExecute, RunFn, SourceData, RetryAttempt} from '@xgsd/engine'
+import {retry as coreRetry, execute as coreExecute, RunFn, SourceData, RetryAttempt, withTimeout} from '@xgsd/engine'
 import {getBackoffStrategy} from './backoff'
 
 export type RetryOpts = {
@@ -30,7 +30,7 @@ export async function retry<T extends SourceData = SourceData>(
   attempt?: (a: RetryAttempt) => void,
 ) {
   return coreRetry<T>(data as T, run, opts?.retries || 1, {
-    timeout: opts?.timeout || 1000,
+    timeoutWrapper: withTimeout(opts?.timeout ?? 1000),
     backoff: getBackoffStrategy(opts?.backoff || 'exponential'),
     onAttempt: attempt,
   })
@@ -42,5 +42,10 @@ export type ExecuteOpts = {
 }
 
 export async function execute<T extends SourceData = SourceData>(run: RunFn<T>, data?: any, opts?: ExecuteOpts) {
-  return coreExecute(data, run, opts?.timeout)
+  let wrapper = undefined
+  if (opts?.timeout) {
+    wrapper = withTimeout(opts.timeout)
+  }
+
+  return coreExecute(data, run, wrapper)
 }

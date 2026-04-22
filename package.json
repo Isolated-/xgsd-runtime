@@ -7,6 +7,7 @@
   "types": "./dist/index.d.ts",
   "module": "./dist/index.js",
   "repository": "https://github.com/Isolated-/xgsd-engine",
+  "license": "MIT",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -37,7 +38,7 @@
   "dependencies": {
     "@types/fs-extra": "^11.0.4",
     "@types/ms": "^2.1.0",
-    "@xgsd/engine": "0.1.0",
+    "@xgsd/engine": "0.1.1",
     "eventemitter2": "^6.4.9",
     "fs-extra": "^11.3.4",
     "joi": "^18.1.2",
