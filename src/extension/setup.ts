@@ -56,6 +56,10 @@ export class SetupContainer {
     const pluginManager = new PluginManager(plugins, this.bus)
     const loggerManager = new LoggerManager(loggers, this.bus)
 
+    if (!this.executorFactory) {
+      throw new Error('an executor has not been configured, call .executor()')
+    }
+
     const executor = this.executorFactory!(context)
 
     return {

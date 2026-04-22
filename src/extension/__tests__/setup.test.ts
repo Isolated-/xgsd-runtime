@@ -1,6 +1,4 @@
 import {Block, Context} from '../../config'
-import {InProcessExecutor} from '../../executors/in-process.executor'
-import {ProcessExecutor} from '../../executors/process.executor'
 import {Executor} from '../../types/generics/executor.interface'
 import {Logger, LogMessage} from '../../types/interfaces/logger.interface'
 import {Plugin} from '../../types/interfaces/plugin.interface'
@@ -14,6 +12,7 @@ class MockLogger implements Logger {
     throw new Error('Method not implemented.')
   }
 }
+
 class MockExecutor implements Executor {
   run(block: Block<any>, context: Context<any>): Promise<Block<any>> {
     throw new Error('Method not implemented.')
@@ -56,27 +55,38 @@ test('.executor() should accept executors correctly', () => {
   expect(() => setup.executor(MockExecutor)).not.toThrow()
 })
 
-test('.build() should return { pluginManager, loggerManager, executor }', async () => {
-  const setup = new SetupContainer()
-  const {pluginManager, loggerManager, executor} = await setup.build({
-    lite: true, // <- no longer nested
-  } as any)
+test('.build() throws an Error when no executor is provided', () => {
+  const setup = new SetupContainer({})
 
-  expect(pluginManager).toBeInstanceOf(PluginManager)
-  expect(loggerManager).toBeInstanceOf(LoggerManager)
-
-  expect(executor).toBeInstanceOf(InProcessExecutor)
+  expect(setup.build({} as any)).rejects.toThrow(
+    expect.objectContaining({
+      message: expect.stringContaining('an executor has not been configured'),
+    }),
+  )
 })
 
-test('.build() returns ProcessExecutor when .lite is false', async () => {
-  const setup = new SetupContainer()
-  const {executor} = await setup.build({lite: false} as any)
-  expect(executor).toBeInstanceOf(ProcessExecutor)
-})
-
-test('.build() returns custom/overriden executor', async () => {
+test('.build() returns executor', async () => {
   const setup = new SetupContainer()
   setup.executor(MockExecutor)
-  const {executor} = await setup.build({lite: false} as any)
+  const {executor} = await setup.build({} as any)
   expect(executor).toBeInstanceOf(MockExecutor)
+})
+
+test('.build() returns pluginManager', async () => {
+  const setup = new SetupContainer()
+  setup.use(MockPlugin)
+  setup.executor(MockExecutor)
+
+  const {pluginManager} = await setup.build({} as any)
+  expect(pluginManager).toBeInstanceOf(PluginManager)
+})
+
+test('.build() returns loggerManager', async () => {
+  const setup = new SetupContainer()
+
+  setup.logger(MockLogger)
+  setup.executor(MockExecutor)
+
+  const {loggerManager} = await setup.build({} as any)
+  expect(loggerManager).toBeInstanceOf(LoggerManager)
 })
