@@ -15,17 +15,18 @@ import {join} from 'path'
 export type UserSetupFn = (ctx: Context, setup: SetupContainer) => Promise<void>
 export type ContextLike = {
   packagePath: string
+  entry: string
   blockCount: number
 }
 
 export async function importUserModule<T extends ContextLike = ContextLike>(context: T) {
   try {
-    const mod = await import(join(context.packagePath, 'index.js'))
+    const mod = await import(context.entry)
     return mod
   } catch (e: any) {
     // clean this up
     throw new FatalError(
-      `${context.packagePath} couldn't be loaded. This could mean it wasn't found, or there's an error preventing its load. Check logs for more information. (${e.message})`,
+      `${context.entry} couldn't be loaded. This could mean it wasn't found, or there's an error preventing its load. Check logs for more information. (${e.message})`,
       FatalErrorCode.ModuleNotFound,
     )
   }
@@ -127,7 +128,6 @@ export const resolveFactory = <T = unknown>(
 
       instance.type = opts?.type
       instance.core = opts?.core ?? false
-      instance.env = opts?.env ?? 'dev'
     }
 
     return instance
@@ -190,13 +190,13 @@ export const createRuntime = async (opts: {
       loggerRegistry,
     })
 
-  const userCodeFn = opts.userCodeFn ?? loadUserSetup
-
-  await userCodeFn(ctx, setup)
-
+  // this needs to happen before userCode is called or preset will always win
   if (preset.executor) {
     setup.executor(preset.executor)
   }
+
+  const userCodeFn = opts.userCodeFn ?? loadUserSetup
+  await userCodeFn(ctx, setup)
 
   return setup.build(ctx)
 }

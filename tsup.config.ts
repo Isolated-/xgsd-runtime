@@ -10,5 +10,5 @@ export default defineConfig({
   clean: true,
   sourcemap: true,
   target: 'es2022',
-  external: ['jest', '@xgsd/runtime/process/block.process.js'],
+  external: ['jest', '@xgsd/runtime/process/block.process'],
 })

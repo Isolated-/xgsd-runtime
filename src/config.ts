@@ -59,11 +59,13 @@ export type Context<T extends SourceData = SourceData> = {
   hash: string
   name: string
   version: string
+  entry: string
   packagePath: string
   mode: string
   concurrency: number
   lite: boolean
-  output: Record<string, unknown>
+  data: SourceData
+  output: SourceData
   blockCount: number
   blocks: T[]
   state: RunState
@@ -82,7 +84,7 @@ export type Builder<T> = {
 // resolve project() (user project path)
 export class ContextSetupStage {
   project(path: string) {
-    return new ContextConfigStage({
+    return new ContextEntryStage({
       packagePath: path,
     })
   }
@@ -90,6 +92,15 @@ export class ContextSetupStage {
 
 export const createContext = (path: string) => {
   return new ContextSetupStage().project(path)
+}
+
+export class ContextEntryStage<T extends SourceData> {
+  constructor(private ctx: Partial<Context<T>> = {}) {}
+
+  entry(entry: string): ContextConfigStage<T> {
+    this.ctx.entry = entry
+    return new ContextConfigStage(this.ctx)
+  }
 }
 
 export class ContextConfigStage<T extends Record<string, unknown>> {
@@ -148,7 +159,8 @@ export class ContextFinalStage<T extends Record<string, unknown>> {
   // TODO: stop merging data inside this method
   // instead just assign it to ctx.input
   // and allow data to be processed before ContextBuilder
-  data(data?: Record<string, unknown>): this {
+  data(data?: SourceData): this {
+    this.ctx.data = data ?? {}
     return this
   }
 
@@ -174,7 +186,6 @@ export class ContextFinalStage<T extends Record<string, unknown>> {
   env(): this {
     this.ctx.env = {
       node: process.version,
-      engine: getPackageVersion('@xgsd/engine'),
       runtime: getPackageVersion('@xgsd/runtime'),
       platform: process.platform,
     }

@@ -129,7 +129,7 @@ export class ProcessManager {
       this.process.send({
         type: 'START',
         block: this.block,
-        ctx: {packagePath: this.context.packagePath, blockCount: this.context.blockCount},
+        ctx: {entry: this.context.entry, packagePath: this.context.packagePath, blockCount: this.context.blockCount},
       })
     })
   }

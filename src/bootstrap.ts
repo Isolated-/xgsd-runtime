@@ -7,6 +7,7 @@ import {EventBus, EventBusAdapter} from './event'
 import {Orchestrator} from './orchestrator'
 import {Manager} from './types/generics/manager.interface'
 import {ExecutorInput, LoggerInput, PluginInput} from './types/factory.types'
+import {ExecutionMode} from './process/orchestration.process'
 
 export const dispatchToManagers = async (opts: {
   managers: Manager[]
@@ -21,51 +22,26 @@ export const dispatchToManagers = async (opts: {
 }
 
 export type RuntimePreset = {
+  // mode/concurrency aren't currently supported
+  // but should be to represent the parts of config
+  // that the runtime is specifically concerned about
+  mode?: ExecutionMode
+  concurrency?: number
   loggers?: LoggerInput[]
   plugins?: PluginInput[]
   executor?: ExecutorInput
 }
 
 export type RuntimePresetFunction = () => RuntimePreset
-export type RuntimePresetFilterFunction = (preset: RuntimePreset, filterArgs: {}) => RuntimePreset
 
-// TODO: remove EventEmitter2 as a dependency
-export const bootstrap = async (opts: {
-  id: () => string
-  packagePath: string
-  configPath: string
+export const bootstrap = async <T extends SourceData>(opts: {
+  ctx: Context<T>
   preset: RuntimePreset
   stream: EventBusAdapter
 }) => {
-  const {packagePath, configPath, preset, stream, id} = opts
+  const {preset, stream, ctx} = opts
 
   const bus = new EventBus(stream)
-
-  const schema = Joi.object()
-  const config = new ConfigParser(configPath)
-    .load()
-    .parse()
-    .default({
-      mode: 'async',
-      concurrency: 4,
-      blocks: [],
-    })
-    .validate((input) => schema.validate(input).value)
-    .build() as {project: any; blocks: any[]} // <- fix this up
-
-  const ctx = createContext(packagePath)
-    .config(config)
-    .bus(bus)
-    .id(id)
-    .name()
-    .version()
-    .data()
-    .mode()
-    .env()
-    .concurrency(config.project.concurrency)
-    .blocks()
-    .blockCount()
-    .build()
 
   const {pluginManager, loggerManager, executor} = await createRuntime({
     ctx,
@@ -85,8 +61,9 @@ export const bootstrap = async (opts: {
     type: 'init',
   })
 
-  // stop merging input data (config no longer has top-level data)
-  await orchestrator.orchestrate(config.project.data)
+  // orchestrator could return output data
+  // config.project.data should become data
+  await orchestrator.orchestrate(ctx.data)
 
   // clean this up
   await dispatchToManagers({

@@ -6,3 +6,6 @@ export * from './types/events.types.js'
 export * from './types/interfaces/logger.interface.js'
 export * from './types/interfaces/plugin.interface.js'
 export * from './process/block.process.js'
+// TODO: don't export everything from config
+export * from './config.js'
+export * from './event.js'

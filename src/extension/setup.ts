@@ -50,17 +50,13 @@ export class SetupContainer {
     loggerManager: LoggerManager
     executor: Executor
   }> {
-    // TODO: this line shouldn't be here anymore
-    // presets are configured/controlled by apps
-    const defaultExecutor = context.lite === true ? new InProcessExecutor() : new ProcessExecutor()
-
     const plugins: Hooks[] = this.pluginRegistry.build(context)
     const loggers: Logger[] = this.loggerRegistry.build(context)
 
     const pluginManager = new PluginManager(plugins, this.bus)
     const loggerManager = new LoggerManager(loggers, this.bus)
 
-    const executor = this.executorFactory ? this.executorFactory(context) : defaultExecutor
+    const executor = this.executorFactory!(context)
 
     return {
       pluginManager,
