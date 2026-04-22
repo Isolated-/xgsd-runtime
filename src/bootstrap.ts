@@ -1,7 +1,6 @@
 import {attachManagerLifecycleListeners, bindEventBusToLoggerManager} from './extension/lifecycle'
 import {createRuntime} from './extension/util'
-import {ConfigParser, Context, createContext} from './config'
-import * as Joi from 'joi'
+import {Context} from './config'
 import {SourceData} from '@xgsd/engine'
 import {EventBus, EventBusAdapter} from './event'
 import {Orchestrator} from './orchestrator'
@@ -54,18 +53,14 @@ export const bootstrap = async <T extends SourceData>(opts: {
   bindEventBusToLoggerManager(bus, loggerManager)
   attachManagerLifecycleListeners(pluginManager, bus)
 
-  //  await executor.init?.(ctx as ProjectContext)
   await dispatchToManagers({
     ctx,
     managers: [loggerManager, pluginManager],
     type: 'init',
   })
 
-  // orchestrator could return output data
-  // config.project.data should become data
   await orchestrator.orchestrate(ctx.data)
 
-  // clean this up
   await dispatchToManagers({
     ctx,
     managers: [loggerManager, pluginManager],
