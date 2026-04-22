@@ -176,8 +176,8 @@ export class ContextFinalStage<T extends Record<string, unknown>> {
   env(): this {
     this.ctx.env = {
       node: process.version,
-      cli: getPackageVersion(process.cwd()),
       engine: getPackageVersion('@xgsd/engine'),
+      runtime: getPackageVersion('@xgsd/runtime'),
       platform: process.platform,
     }
 
