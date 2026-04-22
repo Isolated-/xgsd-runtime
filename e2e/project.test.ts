@@ -1,12 +1,21 @@
-import {bootstrap, ConfigParser, createContext, EventBus, InProcessExecutor, ProjectEvent, RuntimePreset} from '../src'
+import {RetryAttempt} from '@xgsd/engine'
+import {
+  Block,
+  BlockEvent,
+  bootstrap,
+  ConfigParser,
+  Context,
+  createContext,
+  EventBus,
+  InProcessExecutor,
+  ProjectEvent,
+  RuntimePreset,
+} from '../src'
 import EventEmitter2 from 'eventemitter2'
 import {pathExistsSync, readFileSync, readJsonSync, rmSync} from 'fs-extra'
 import {join} from 'path'
 
-const pkg = join(__dirname, 'fixtures', 'usercode')
-const logFile = join(pkg, 'temp.txt')
-
-const createApp = () => {
+const createApp = (pkg: string, data?: any) => {
   const path = join(pkg, 'config.yaml')
   const stream = new EventEmitter2({wildcard: true})
   const bus = new EventBus(stream)
@@ -37,7 +46,7 @@ const createApp = () => {
     .id(() => 'id')
     .name()
     .version()
-    .data(config.project.data)
+    .data(data ?? config.project.data)
     .mode()
     .concurrency(config.project.concurrency)
     .blocks()
@@ -53,18 +62,21 @@ const createApp = () => {
 
 /**
  *  @note
- *  this runs a real project that has been used thousands of times
+ *  this runs a real project that has been used thousands of times during development
  *  during development. It runs in chained mode and makes an API request
  *  plus calls filesystem APIs to log temperature data to file.
  *
  *  The setup code is typically managed by @xgsd/cli.
  */
 test('successfully runs a real project in chained mode (no process isolation)', async () => {
+  const pkg = join(__dirname, 'fixtures', 'usercode')
+  const logFile = join(pkg, 'temp.txt')
+
   if (pathExistsSync(logFile)) {
     rmSync(logFile)
   }
 
-  const {ctx, stream, bus, preset} = createApp()
+  const {ctx, stream, bus, preset} = createApp(pkg)
 
   let finalEvent: any
   bus.on<ProjectEvent.Ended>(ProjectEvent.Ended, ({event, payload}) => {
@@ -101,3 +113,79 @@ test('successfully runs a real project in chained mode (no process isolation)', 
 
   rmSync(logFile)
 })
+
+test('runs a project that completes with failed blocks (and retries enabled)', async () => {
+  const pkg = join(__dirname, 'fixtures', 'usercode_failing_with_retry')
+
+  const {ctx, stream, bus, preset} = createApp(pkg, {
+    num: 1,
+  })
+
+  let retryEvents: RetryAttempt[] = []
+  let finalEvent: any
+  bus.on<ProjectEvent.Ended>(ProjectEvent.Ended, ({event, payload}) => {
+    finalEvent = payload
+  })
+
+  bus.on<BlockEvent.Retrying>(BlockEvent.Retrying, ({event, payload}) => {
+    retryEvents.push(payload.attempt)
+  })
+
+  await bootstrap({
+    ctx,
+    stream,
+    preset,
+  })
+
+  expect(retryEvents).toHaveLength(2)
+  const ref = retryEvents.reverse()[0]
+
+  expect(ref.attempt).toEqual(1)
+  expect(ref.error).toEqual(
+    expect.objectContaining({
+      message: 'something went wrong',
+    }),
+  )
+
+  expect(ref.finalAttempt).toBeTruthy()
+  expect(ref.maxRetries).toEqual(2)
+  expect(ref.nextMs).toEqual(2000)
+
+  expect(finalEvent.output[0].state).toBe('failed')
+}, 30000)
+
+test('runs a project that completes with failed blocks (without retries enabled)', async () => {
+  const pkg = join(__dirname, 'fixtures', 'usercode_failing_without_retry')
+
+  const {ctx, stream, bus, preset} = createApp(pkg, {
+    num: 1,
+  })
+
+  let retryEvent: RetryAttempt
+  let finalEvent: any
+  bus.on<ProjectEvent.Ended>(ProjectEvent.Ended, ({event, payload}) => {
+    finalEvent = payload
+  })
+
+  bus.on<BlockEvent.Retrying>(BlockEvent.Retrying, ({event, payload}) => {
+    retryEvent = payload.attempt
+  })
+
+  await bootstrap({
+    ctx,
+    stream,
+    preset,
+  })
+
+  expect(retryEvent!.attempt).toEqual(0)
+  expect(retryEvent!.error).toEqual(
+    expect.objectContaining({
+      message: 'something went wrong',
+    }),
+  )
+
+  expect(retryEvent!.finalAttempt).toBeTruthy()
+  expect(retryEvent!.maxRetries).toEqual(1)
+
+  expect(finalEvent.output[0].state).toBe('failed')
+}, 30000)
