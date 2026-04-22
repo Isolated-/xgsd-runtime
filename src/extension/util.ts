@@ -25,15 +25,12 @@ const moduleCache = new Map<string, UserModule>()
 
 export async function importUserModule<T extends ContextLike = ContextLike>(context: T) {
   if (moduleCache.has(context.entry)) {
-    console.log(`cache hit for ${context.entry}`)
     return moduleCache.get(context.entry)
   }
 
   try {
     const mod = await import(context.entry)
-
     moduleCache.set(context.entry, mod)
-    console.log(`cache updated for ${context.entry}`)
 
     return mod
   } catch (e: any) {
