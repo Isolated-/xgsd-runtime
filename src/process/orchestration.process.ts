@@ -30,22 +30,26 @@ export async function executeRunnables<T extends Runnable<SourceData>, C extends
 }): Promise<T[]> {
   const {runnables, input, options, run} = args
 
-  let concurrency = options.concurrency
-  if (options.mode === 'chain' || options.mode === 'fanout') {
-    concurrency = 1
-  }
-
-  let results: T[] = []
+  // concurrency must already be defined by now
+  // no need to check modes and re-assign it
+  const concurrency = options.concurrency
+  const results: T[] = []
   let data = input
 
   await runWithConcurrency(runnables, concurrency!, async (block) => {
+    // in all modes, the input is merged with config data
+    // config data != block input data
     block.input = deepmerge2(block.input, data) as SourceData
 
     const result = await run(block)
 
-    // merge chained ouputs for next step input
+    // chain mode is a special case
+    // where output data becomes input data of next block
+    // additionally, like all other blocks
+    // "data" (comes from config) is merged with the output
+    // so that top-level data isn't lost
     if (options.mode === 'chain') {
-      data = deepmerge2(block.input, result.output) as any
+      data = deepmerge2(data, result.output!)
     }
 
     results.push(result)
