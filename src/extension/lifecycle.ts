@@ -36,7 +36,7 @@ export const attachManagerLifecycleListeners = (manager: Manager, bus: EventBus<
     const off = bus.on(event as any, async (e: any) => {
       const payload = e?.payload ?? {}
 
-      await manager.emit(handler, payload)
+      await manager.emit(event, payload)
     })
 
     disposers.push(off)

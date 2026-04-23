@@ -19,12 +19,12 @@ export function getPackageVersion(input: string): string {
     const json = fs.readJsonSync(pkgPath)
 
     if (!json?.version || typeof json.version !== 'string') {
-      throw new Error(`Missing "version" field in ${pkgPath}`)
+      return 'unknown'
     }
 
-    return `v${json.version}`
+    return `${json.version}`
   } catch (err: any) {
-    throw new Error(`package version not resolvable: ${err.message}`)
+    return 'unknown'
   }
 }
 

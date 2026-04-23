@@ -22,6 +22,8 @@ export enum SystemEvent {
   ExtensionLoaded = 'extension.loaded',
   ExtensionUnloaded = 'extension.unloaded',
   SystemMessage = 'system.message',
+  Started = 'system.started',
+  Ended = 'system.ended',
 }
 
 export type Events = {
@@ -50,6 +52,8 @@ export type Events = {
   [BlockEvent.Waiting]: {
     block: Block
   }
+  [SystemEvent.Started]: {}
+  [SystemEvent.Ended]: {}
   [SystemEvent.SystemMessage]: {
     level: LoggerLevel
     message: string

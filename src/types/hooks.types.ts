@@ -6,7 +6,7 @@ export interface Hooks {
   // new event handler
   // generic to avoid need to add more events
   // like projectWait
-  on?<T = unknown>(event: T): Promise<void> | void
+  on?<T = unknown>(event: string, payload: T): Promise<void> | void
 
   // this may not be on external plugins
   emit?<T = unknown>(event: string, payload: T): Promise<void> | void

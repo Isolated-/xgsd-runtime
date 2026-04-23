@@ -6,7 +6,8 @@ import {EventBus, EventBusAdapter} from './event'
 import {Manager} from './types/generics/manager.interface'
 import {ExecutorInput, LoggerInput, OrchestratorInput, PluginInput} from './types/factory.types'
 import {ExecutionMode} from './process/orchestration.process'
-import {ProjectEvent} from './types/events.types'
+import {ProjectEvent, SystemEvent} from './types/events.types'
+import {RunState} from './types/state.types'
 
 export const dispatchToManagers = async (opts: {
   managers: Manager[]
@@ -42,6 +43,7 @@ export const bootstrap = async <T extends SourceData>(opts: {
   const {preset, stream, ctx} = opts
 
   const bus = new EventBus(stream)
+  await bus.emit(SystemEvent.Started, {})
 
   const {pluginManager, loggerManager, orchestrator} = await createRuntime({
     ctx,
@@ -58,11 +60,29 @@ export const bootstrap = async <T extends SourceData>(opts: {
     type: 'init',
   })
 
-  await orchestrator.orchestrate(ctx.data, ctx.blocks as any[])
+  await bus.emit(ProjectEvent.Started, {
+    context: {
+      ...ctx,
+      state: RunState.Running,
+    },
+  })
+
+  const results = await orchestrator.orchestrate(ctx.data, ctx.blocks as any[])
+
+  await bus.emit(ProjectEvent.Ended, {
+    context: {
+      ...ctx,
+      state: RunState.Completed,
+      end: new Date().toISOString(),
+    },
+    output: results,
+  })
 
   await dispatchToManagers({
     ctx,
     managers: [loggerManager, pluginManager],
     type: 'exit',
   })
+
+  await bus.emit(SystemEvent.Ended, {})
 }

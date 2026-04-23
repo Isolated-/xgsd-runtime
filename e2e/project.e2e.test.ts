@@ -200,3 +200,32 @@ test('runs a project that completes with failed blocks (without retries enabled)
   expect(finalEvent.output[0].state).toBe('failed')
   expect(failEvent.error).toEqual(finalEvent.output[0].error)
 }, 30000)
+
+test('runs an advanced project setup with custom Executor and Orchestrator', async () => {
+  const pkg = join(__dirname, 'fixtures', 'usercode_advanced')
+
+  const {ctx, stream, bus, preset} = createApp(pkg, {
+    num: 1,
+  })
+
+  let startEvent
+  let finalEvent
+
+  // we're mainly just testing that project events are correctly fired
+  // block events are managed by the executor
+  bus.on('project.started', ({event, payload}) => {
+    startEvent = payload
+  })
+
+  bus.on('project.ended', ({event, payload}) => {
+    finalEvent = payload
+  })
+
+  await bootstrap({ctx, stream, preset})
+
+  expect(startEvent).toBeDefined()
+  expect(finalEvent).toBeDefined()
+
+  expect(startEvent!.context.state).toBe('running')
+  expect(finalEvent!.context.state).toBe('completed')
+})

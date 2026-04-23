@@ -246,10 +246,10 @@ export const createRuntime = async (opts: {
   return setup.build(ctx)
 }
 
-export const emit = async <T = unknown>(hooks: Hooks[], _: string, payload: T) => {
+export const emit = async <T = unknown>(hooks: Hooks[], event: string, payload: T) => {
   for (const hook of hooks) {
     if (!hook.on || typeof hook.on !== 'function') continue
 
-    await hook.on(payload)
+    await hook.on(event, payload)
   }
 }
