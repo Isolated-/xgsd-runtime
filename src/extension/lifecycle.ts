@@ -19,9 +19,26 @@ const EVENT_MAP = {
   // system events
   [SystemEvent.ExtensionLoaded]: SystemEvent.ExtensionLoaded,
   [SystemEvent.ExtensionUnloaded]: SystemEvent.ExtensionUnloaded,
+  [SystemEvent.Started]: SystemEvent.Started,
+  [SystemEvent.Ended]: SystemEvent.Ended,
 } as const
 
 export type EventHandler<T = unknown> = (payload: T) => void | Promise<void>
+
+export const cleanEventPayload = (payload: any) => {
+  // drop bus from Context
+
+  if (!payload.context) {
+    return payload
+  }
+
+  const {bus, ...context} = payload.context
+  payload.context = {
+    ...context,
+  }
+
+  return payload
+}
 
 /**
  *  Attaches listeners for incoming events used by Extensions
@@ -36,7 +53,7 @@ export const attachManagerLifecycleListeners = (manager: Manager, bus: EventBus<
     const off = bus.on(event as any, async (e: any) => {
       const payload = e?.payload ?? {}
 
-      await manager.emit(event, payload)
+      await manager.emit(event, cleanEventPayload(payload))
     })
 
     disposers.push(off)
@@ -51,13 +68,8 @@ export const attachManagerLifecycleListeners = (manager: Manager, bus: EventBus<
 export const bindEventBusToLoggerManager = (bus: EventBus<EventBusAdapter>, manager: LoggerManager) => {
   const disposers: Array<() => void> = []
 
-  const off = bus.on('*.*', async (event: any) => {
-    if (event.payload.event && event.payload.payload) {
-      await manager.log(event.payload)
-      return
-    }
-
-    await manager.log(event)
+  const off = bus.on('*.*', async ({event, payload}) => {
+    await manager.log(event, cleanEventPayload(payload))
   })
 
   disposers.push(off)

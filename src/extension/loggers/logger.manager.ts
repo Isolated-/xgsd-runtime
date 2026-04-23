@@ -13,21 +13,9 @@ export class LoggerManager implements Manager {
   // this is plugin focused
   async emit(event: string, payload: any): Promise<void> {}
 
-  async log(message: any): Promise<void> {
-    let msg = message
-
+  async log(event: string, payload: any): Promise<void> {
     for (const logger of this.loggers) {
-      const {event, payload} = message
-
-      // unwrap wrapped events
-      if (payload.payload) {
-        msg = {
-          event,
-          payload: payload.payload,
-        }
-      }
-
-      await logger.log(msg)
+      await logger.log(event, payload)
     }
   }
 

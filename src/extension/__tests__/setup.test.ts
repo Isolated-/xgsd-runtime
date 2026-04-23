@@ -10,7 +10,7 @@ import {SetupContainer} from '../setup'
 
 class MockPlugin implements Plugin {}
 class MockLogger implements Logger {
-  log(event: LogMessage<unknown>): Promise<void> | void {
+  log(event: string, payload: any): Promise<void> | void {
     throw new Error('Method not implemented.')
   }
 }
