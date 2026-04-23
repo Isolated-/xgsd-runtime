@@ -5,11 +5,15 @@ import {Executor} from './types/generics/executor.interface'
 import {FatalError} from './error'
 import {EventBus, EventBusAdapter} from './event'
 import {SourceData} from '@xgsd/engine'
-import {Context} from './config'
+import {BlockContext, Context} from './config'
 import {Block} from './config'
 import {deepmerge2} from './util/object.util'
 import {importUserModule} from './extension/util'
+import {Orchestrator as IOrchestrator} from './types/generics/orchestrator.interface'
 
+type OrchestratorContext = {}
+
+// TODO: make this injectable like an Executor
 export class Orchestrator {
   constructor(
     public context: Context,
@@ -17,6 +21,7 @@ export class Orchestrator {
     private bus: EventBus<EventBusAdapter>,
   ) {}
 
+  // dont do any event related stuff here
   async before(): Promise<void> {
     await this.event(ProjectEvent.Started, {context: this.context})
   }
@@ -25,6 +30,7 @@ export class Orchestrator {
     await this.bus.emit(name, payload)
   }
 
+  // TODO: make blocks explicit vs carrying them on context
   async orchestrate(data: SourceData): Promise<void> {
     // fire start event
     await this.before()

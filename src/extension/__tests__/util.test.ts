@@ -7,13 +7,13 @@ import {
   resolveFactory,
   runExit,
   runInit,
-} from '../extension/util'
-import {Executor} from '../types/generics/executor.interface'
-import {Block, Context} from '../config'
+} from '../util'
+import {Executor} from '../../types/generics/executor.interface'
+import {Block, Context} from '../../config'
 import {join} from 'path'
-import {FatalError} from '../error'
-import {SystemEvent} from '../types/events.types'
-import {UserModule} from '../extension/user-module'
+import {FatalError} from '../../error'
+import {SystemEvent} from '../../types/events.types'
+import {UserModule} from '../user-module'
 
 /**
  *  resolveFactory()

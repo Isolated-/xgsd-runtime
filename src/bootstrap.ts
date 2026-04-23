@@ -1,12 +1,12 @@
 import {attachManagerLifecycleListeners, bindEventBusToLoggerManager} from './extension/lifecycle'
 import {createRuntime} from './extension/util'
-import {Context} from './config'
+import {BlockContext, Context} from './config'
 import {SourceData} from '@xgsd/engine'
 import {EventBus, EventBusAdapter} from './event'
-import {Orchestrator} from './orchestrator'
 import {Manager} from './types/generics/manager.interface'
-import {ExecutorInput, LoggerInput, PluginInput} from './types/factory.types'
+import {ExecutorInput, LoggerInput, OrchestratorInput, PluginInput} from './types/factory.types'
 import {ExecutionMode} from './process/orchestration.process'
+import {ProjectEvent} from './types/events.types'
 
 export const dispatchToManagers = async (opts: {
   managers: Manager[]
@@ -29,6 +29,7 @@ export type RuntimePreset = {
   loggers?: LoggerInput[]
   plugins?: PluginInput[]
   executor?: ExecutorInput
+  orchestrator?: OrchestratorInput
 }
 
 export type RuntimePresetFunction = () => RuntimePreset
@@ -42,13 +43,11 @@ export const bootstrap = async <T extends SourceData>(opts: {
 
   const bus = new EventBus(stream)
 
-  const {pluginManager, loggerManager, executor} = await createRuntime({
+  const {pluginManager, loggerManager, orchestrator} = await createRuntime({
     ctx,
     bus,
     preset,
   })
-
-  const orchestrator = new Orchestrator(ctx, executor as any, bus)
 
   bindEventBusToLoggerManager(bus, loggerManager)
   attachManagerLifecycleListeners(pluginManager, bus)
@@ -59,7 +58,7 @@ export const bootstrap = async <T extends SourceData>(opts: {
     type: 'init',
   })
 
-  await orchestrator.orchestrate(ctx.data)
+  await orchestrator.orchestrate(ctx.data, ctx.blocks as any[])
 
   await dispatchToManagers({
     ctx,

@@ -8,10 +8,12 @@ import {Hooks} from '../types/hooks.types'
 import {FatalError, FatalErrorCode} from '../error'
 import {EventBus, EventBusAdapter} from '../event'
 import {SystemEvent} from '../types/events.types'
-import {FactoryInput, Factory} from '../types/factory.types'
+import {FactoryInput, Factory, OrchestratorInput, OrchestratorFactory} from '../types/factory.types'
 import {RuntimePreset} from '../bootstrap'
 import {join} from 'path'
 import {UserModule} from './user-module'
+import {Executor} from '../types/generics/executor.interface'
+import {Orchestrator} from '../types/generics/orchestrator.interface'
 
 export type UserSetupFn = (mod: UserModule, setup: SetupContainer) => Promise<void>
 export type ContextLike = {
@@ -59,7 +61,7 @@ export async function importUserModuleRunFn<T extends ContextLike = ContextLike>
   return mod[block.run] as RunFn<SourceData>
 }
 
-export type ExtensionType = 'plugin' | 'logger'
+export type ExtensionType = 'plugin' | 'logger' | 'executor' | 'orchestrator'
 export type Extension = {
   name?: string
   core?: boolean
@@ -101,10 +103,41 @@ export const runExit = async <T extends Extension>(items: T[], ctx: Context, bus
   }
 }
 
+export const resolveOrchestrator = (input: OrchestratorInput, opts?: {type: ExtensionType; core?: boolean}) => {
+  return (ctx: Context) => {
+    return (executor: Executor) => {
+      const instance =
+        typeof input === 'function'
+          ? (() => {
+              try {
+                return new (input as any)(ctx, executor)
+              } catch {
+                return (input as any)(ctx, executor)
+              }
+            })()
+          : input
+
+      const name =
+        instance?.name ||
+        instance?.constructor?.name ||
+        (typeof input === 'function' ? input.name : undefined) ||
+        'anonymous'
+
+      if (instance && typeof instance === 'object') {
+        instance.name = name
+        instance.type = opts?.type
+        instance.core = opts?.core ?? false
+      }
+
+      return instance
+    }
+  }
+}
+
 export const resolveFactory = <T = unknown>(
   input: FactoryInput<T>,
   opts?: {
-    type: 'logger' | 'plugin' | 'executor'
+    type: ExtensionType
     core?: boolean
   },
 ) => {
@@ -194,6 +227,10 @@ export const createRuntime = async (opts: {
   // this needs to happen before userCode is called or preset will always win
   if (preset.executor) {
     setup.executor(preset.executor)
+  }
+
+  if (preset.orchestrator) {
+    setup.orchestrator(preset.orchestrator)
   }
 
   // remove this just depend on userCodeFn

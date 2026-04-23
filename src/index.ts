@@ -1,6 +1,7 @@
 export * from './sdk.js'
 export * from './bootstrap.js'
 export * from './executors/index.js'
+export * from './orchestrators/default.orchestrator.js'
 export * from './error.js'
 export * from './types/events.types.js'
 export * from './types/interfaces/logger.interface.js'

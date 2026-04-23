@@ -1,10 +1,8 @@
 import {RetryAttempt} from '@xgsd/engine'
 import {
-  Block,
   BlockEvent,
   bootstrap,
   ConfigParser,
-  Context,
   createContext,
   EventBus,
   InProcessExecutor,
@@ -14,6 +12,7 @@ import {
 import EventEmitter2 from 'eventemitter2'
 import {pathExistsSync, readFileSync, readJsonSync, rmSync} from 'fs-extra'
 import {join} from 'path'
+import {DefaultOrchestrator} from '../src/orchestrators/default.orchestrator'
 
 const createApp = (pkg: string, data?: any) => {
   const path = join(pkg, 'config.yaml')
@@ -55,6 +54,7 @@ const createApp = (pkg: string, data?: any) => {
 
   const preset: RuntimePreset = {
     executor: InProcessExecutor,
+    orchestrator: DefaultOrchestrator,
   }
 
   return {ctx, bus, stream, preset}
@@ -96,6 +96,8 @@ test('successfully runs a real project in chained mode (no process isolation)', 
   expect(finalEvent.context).toBeDefined()
   expect(finalEvent.context.mode).toBe('chain')
   expect(finalEvent.context.concurrency).toEqual(1)
+  expect(finalEvent.context.state).toBe('completed')
+  expect(finalEvent.context.end).toEqual(expect.any(String))
 
   // output assertions
   expect(finalEvent.output).toBeDefined()
@@ -140,6 +142,9 @@ test('runs a project that completes with failed blocks (and retries enabled)', a
   expect(retryEvents).toHaveLength(2)
   const ref = retryEvents.reverse()[0]
 
+  // even when all blocks fail, the state is still completed
+  expect(finalEvent.context.state).toBe('completed')
+
   expect(ref.attempt).toEqual(1)
   expect(ref.error).toEqual(
     expect.objectContaining({
@@ -163,12 +168,17 @@ test('runs a project that completes with failed blocks (without retries enabled)
 
   let retryEvent: RetryAttempt
   let finalEvent: any
+  let failEvent: any
   bus.on<ProjectEvent.Ended>(ProjectEvent.Ended, ({event, payload}) => {
     finalEvent = payload
   })
 
   bus.on<BlockEvent.Retrying>(BlockEvent.Retrying, ({event, payload}) => {
     retryEvent = payload.attempt
+  })
+
+  bus.on<BlockEvent.Failed>(BlockEvent.Failed, ({event, payload}) => {
+    failEvent = payload
   })
 
   await bootstrap({
@@ -188,4 +198,5 @@ test('runs a project that completes with failed blocks (without retries enabled)
   expect(retryEvent!.maxRetries).toEqual(1)
 
   expect(finalEvent.output[0].state).toBe('failed')
+  expect(failEvent.error).toEqual(finalEvent.output[0].error)
 }, 30000)

@@ -1,4 +1,6 @@
 export enum FatalErrorCode {
+  NoOrchestrator = 'CODE_NO_ORCHESTRATOR',
+  NoExecutor = 'CODE_NO_EXECUTOR',
   HardTimeout = 'CODE_HARD_TIMEOUT',
   HardDataSize = 'CODE_HARD_DATA_SIZE',
   FatalError = 'CODE_FATAL_ERROR',
