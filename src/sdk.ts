@@ -1,6 +1,7 @@
 // this will eventually become its own library (@xgsd/sdk)
 import {retry as coreRetry, execute as coreExecute, RunFn, SourceData, RetryAttempt, withTimeout} from '@xgsd/engine'
 import {getBackoffStrategy} from './backoff'
+import {RuntimePreset, RuntimePresetFunction} from './bootstrap'
 
 export type RetryOpts = {
   retries?: number
@@ -48,4 +49,28 @@ export async function execute<T extends SourceData = SourceData>(run: RunFn<T>, 
   }
 
   return coreExecute(data, run, wrapper)
+}
+
+export function composePreset(...presetFunctions: RuntimePresetFunction[]) {
+  return composePresetWithOpts({
+    presets: presetFunctions,
+    opts: {},
+  })
+}
+
+export function composePresetWithOpts(args: {
+  presets: RuntimePresetFunction[]
+  opts: Record<string, unknown>
+}): RuntimePreset {
+  const {presets, opts} = args
+  const compiled: RuntimePreset[] = presets.map((p) => p(opts))
+
+  const reversed = [...compiled].reverse()
+
+  return {
+    loggers: compiled.flatMap((p) => p.loggers ?? []),
+    plugins: compiled.flatMap((p) => p.plugins ?? []),
+    executor: reversed.find((p) => p.executor)?.executor,
+    orchestrator: reversed.find((p) => p.orchestrator)?.orchestrator,
+  }
 }

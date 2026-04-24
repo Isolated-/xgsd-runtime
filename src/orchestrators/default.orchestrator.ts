@@ -21,10 +21,6 @@ export class DefaultOrchestrator implements Orchestrator {
 
     const userModule = await importUserModule(ctx)
 
-    await ctx.bus.emit<ProjectEvent.Started>(ProjectEvent.Started, {
-      context: ctx,
-    })
-
     let concurrency = config.project?.concurrency as number
     if (ctx.mode === 'chain' || ctx.mode === 'fanout') {
       concurrency = 1
@@ -59,15 +55,6 @@ export class DefaultOrchestrator implements Orchestrator {
         return result as Block
       },
     )
-
-    await ctx.bus.emit<ProjectEvent.Ended>(ProjectEvent.Ended, {
-      output: results,
-      context: {
-        ...ctx,
-        state: RunState.Completed,
-        end: new Date().toISOString(),
-      },
-    })
 
     return results
   }

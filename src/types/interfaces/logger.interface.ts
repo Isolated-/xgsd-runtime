@@ -9,12 +9,10 @@ export enum LoggerLevel {
 }
 
 export type LogMessage<T = unknown> = {
-  event: ProjectEvent | BlockEvent | SystemEvent
   payload: T
   error?: WrappedError | null
 }
 
 export interface Logger<T = unknown> extends Hooks {
-  log(event: LogMessage<T>): Promise<void> | void
-  error?(event: LogMessage<T>): Promise<void> | void
+  log(event: string, payload: T): Promise<void> | void
 }

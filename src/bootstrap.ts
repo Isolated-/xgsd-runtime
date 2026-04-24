@@ -33,18 +33,17 @@ export type RuntimePreset = {
   orchestrator?: OrchestratorInput
 }
 
-export type RuntimePresetFunction = () => RuntimePreset
+export type RuntimePresetFunction = (opts?: Record<string, unknown>) => RuntimePreset
 
 export const bootstrap = async <T extends SourceData>(opts: {
   ctx: Context<T>
   preset: RuntimePreset
   stream: EventBusAdapter
 }) => {
+  const start = performance.now()
   const {preset, stream, ctx} = opts
 
   const bus = new EventBus(stream)
-  await bus.emit(SystemEvent.Started, {})
-
   const {pluginManager, loggerManager, orchestrator} = await createRuntime({
     ctx,
     bus,
@@ -53,6 +52,9 @@ export const bootstrap = async <T extends SourceData>(opts: {
 
   bindEventBusToLoggerManager(bus, loggerManager)
   attachManagerLifecycleListeners(pluginManager, bus)
+
+  // this has to be here otherwise plugins/loggers never get this event
+  await bus.emit(SystemEvent.Started, {})
 
   await dispatchToManagers({
     ctx,
@@ -67,7 +69,9 @@ export const bootstrap = async <T extends SourceData>(opts: {
     },
   })
 
+  const projectStart = performance.now()
   const results = await orchestrator.orchestrate(ctx.data, ctx.blocks as any[])
+  const projectEnd = performance.now()
 
   await bus.emit(ProjectEvent.Ended, {
     context: {
@@ -84,5 +88,12 @@ export const bootstrap = async <T extends SourceData>(opts: {
     type: 'exit',
   })
 
-  await bus.emit(SystemEvent.Ended, {})
+  const projectDuration = projectEnd - projectStart
+  const ended = performance.now()
+  const duration = ended - start
+
+  await bus.emit(SystemEvent.Ended, {
+    bootstrapDuration: duration,
+    projectDuration,
+  })
 }

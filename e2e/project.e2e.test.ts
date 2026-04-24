@@ -99,6 +99,9 @@ test('successfully runs a real project in chained mode (no process isolation)', 
   expect(finalEvent.context.state).toBe('completed')
   expect(finalEvent.context.end).toEqual(expect.any(String))
 
+  // bus shouldn't be available
+  expect(finalEvent.context.bus).toBeUndefined()
+
   // output assertions
   expect(finalEvent.output).toBeDefined()
   expect(finalEvent.output).toHaveLength(2)
@@ -169,8 +172,10 @@ test('runs a project that completes with failed blocks (without retries enabled)
   let retryEvent: RetryAttempt
   let finalEvent: any
   let failEvent: any
+  let endEventCount = 0
   bus.on<ProjectEvent.Ended>(ProjectEvent.Ended, ({event, payload}) => {
     finalEvent = payload
+    endEventCount = endEventCount + 1
   })
 
   bus.on<BlockEvent.Retrying>(BlockEvent.Retrying, ({event, payload}) => {
@@ -199,6 +204,7 @@ test('runs a project that completes with failed blocks (without retries enabled)
 
   expect(finalEvent.output[0].state).toBe('failed')
   expect(failEvent.error).toEqual(finalEvent.output[0].error)
+  expect(endEventCount).toEqual(1)
 }, 30000)
 
 test('runs an advanced project setup with custom Executor and Orchestrator', async () => {

@@ -53,7 +53,10 @@ export type Events = {
     block: Block
   }
   [SystemEvent.Started]: {}
-  [SystemEvent.Ended]: {}
+  [SystemEvent.Ended]: {
+    bootstrapDuration: number
+    projectDuration: number
+  }
   [SystemEvent.SystemMessage]: {
     level: LoggerLevel
     message: string
