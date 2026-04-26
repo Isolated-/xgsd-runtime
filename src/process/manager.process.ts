@@ -3,7 +3,10 @@ import {RunState} from '../types/state.types'
 import {FatalError, FatalErrorCode} from '../error'
 import {BlockEvent, SystemEvent} from '../types/events.types'
 import {LoggerLevel} from '../types/interfaces/logger.interface'
-import {Block, Context} from '../config'
+import {Block, BlockContext, Context, getPackageVersion} from '../config'
+import {pathExistsSync, readFileSync, readJsonSync} from 'fs-extra'
+import {parse} from 'dotenv'
+import * as path from 'path'
 
 export const event = (name: string, payload: object) => {
   process.send!({type: 'PARENT:EVENT', event: name, payload})
@@ -22,6 +25,82 @@ const log = async (message: string, level: LoggerLevel, context?: Context, block
   }
 }
 
+function resolveEnvVarsFromPath(inputPath: string, ref: string): string {
+  const resolvedPath = path.isAbsolute(inputPath) ? inputPath : path.resolve(process.cwd(), inputPath)
+
+  if (!resolvedPath || !pathExistsSync(resolvedPath)) {
+    throw new FatalError(`Cannot load ${ref} from ${inputPath} - doesn't exist`, FatalErrorCode.EnvVarLoadFail)
+  }
+
+  let json: any = null
+
+  try {
+    json = readJsonSync(resolvedPath)
+  } catch {}
+
+  if (json !== null) {
+    if (!(ref in json)) {
+      throw new FatalError(`Missing key "${ref}" in ${inputPath}`, FatalErrorCode.EnvVarLoadFail)
+    }
+
+    return String(json[ref])
+  }
+
+  const content = readFileSync(resolvedPath, 'utf-8')
+  const parsed = parse(content)
+
+  if (!(ref in parsed)) {
+    throw new FatalError(`Missing env var "${ref}" in ${inputPath}`, FatalErrorCode.EnvVarLoadFail)
+  }
+
+  return parsed[ref].trim()
+}
+
+type BlockLike = {
+  env: Record<string, unknown> | undefined
+}
+
+function resolveEnvVars(block: BlockLike): Record<string, unknown> {
+  if (!block.env) return {}
+
+  const env: Record<string, unknown> = {}
+
+  for (const [key, data] of Object.entries(block.env)) {
+    if (typeof data === 'object' && data !== null) {
+      const {ref, source, path} = data as any
+
+      if (!ref || !source) {
+        throw new FatalError(`Invalid env config for "${key}" - missing ref/source`, FatalErrorCode.EnvVarLoadFail)
+      }
+
+      let value: string
+
+      if (source === 'file') {
+        if (!path) {
+          throw new FatalError(`Missing path for key "${key}"`, FatalErrorCode.EnvVarLoadFail)
+        }
+
+        value = resolveEnvVarsFromPath(path, ref)
+      } else {
+        if (!(ref in process.env)) {
+          throw new FatalError(`"${ref}" not set in process.env`, FatalErrorCode.EnvVarLoadFail)
+        }
+
+        value = String(process.env[ref])
+      }
+
+      env[key] = value
+      block.env[key] = '*'.repeat(value.length)
+
+      continue
+    }
+
+    env[key] = data
+  }
+
+  return env
+}
+
 export class ProcessManager {
   process: any
   startedAt: number
@@ -36,12 +115,23 @@ export class ProcessManager {
   }
 
   fork() {
+    // resolve env vars here vs at load
+    // to prevent leaking
+    const envVars = resolveEnvVars(this.block)
+
     this.process = fork(this.path, {
       stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
       env: {
-        PROJECT_ID: this.context.id ?? 'none',
-        PROJECT_CONFIG_HASH: this.context.hash ?? 'none',
-        ...this.block.env,
+        XGSD_VERSION: getPackageVersion('@xgsd/runtime'),
+        PROJECT_NAME: this.context.name ?? 'not set',
+        PROJECT_PATH: this.context.packagePath,
+        MODE: this.context.mode,
+        CONCURRENCY: String(this.context.concurrency),
+        RUN_ID: this.context.id ?? 'none',
+        BLOCK_NAME: this.block.name ?? this.block.run,
+        BLOCK_INDEX: String(this.block.idx),
+        HOME: process.env.HOME,
+        ...envVars,
       },
       execArgv: ['--max-old-space-size=256', '--stack-size=1024'],
     })

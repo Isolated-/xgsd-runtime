@@ -4,7 +4,7 @@ import {BlockEvent} from '../types/events.types'
 import {retry, WrappedError, RetryAttempt, SourceData, withTimeout} from '@xgsd/engine'
 import {getBackoffStrategy} from '../backoff'
 import {Events} from '../types/events.types'
-import {Block, Context} from '../config'
+import {Block, Context, ResultBuilder} from '../config'
 import {ContextLike, importUserModuleRunFn} from '../extension/util'
 import {defaultWith, delayFor} from '../util/misc.util'
 
@@ -25,6 +25,19 @@ export function getStepDelay(stepCount: number): number {
 
   // Clamp so we never go below min
   return Math.max(min, Math.round(delay))
+}
+
+const TEMPLATE_RE = /\{\{([^}]+)\}\}/g
+
+export function interpolate(template: string, ctx: any) {
+  return template.replace(TEMPLATE_RE, (_, expr) => {
+    const value = expr
+      .trim()
+      .split('.')
+      .reduce((acc: any, key: any) => acc?.[key], ctx)
+
+    return value == null ? '' : String(value)
+  })
 }
 
 function dispatchMessage(
@@ -60,7 +73,10 @@ export async function processBlock(opts: {
 }) {
   const {event, attempt, block} = opts
 
+  // this doesn't provide enough resolution
   block.start = new Date().toISOString()
+
+  const start = performance.now()
 
   if (block.enabled === false) {
     // handle skip
@@ -72,6 +88,7 @@ export async function processBlock(opts: {
 
   event?.(BlockEvent.Started, {block})
 
+  // TODO: implement waiting/delay
   if (block.options?.delay && block.options.delay !== '0s' && block.options.delay !== 0) {
     //const delayMs = getDurationNumber(block.options.delay as string) || 0
     //event?.(BlockEvent.Waiting, {block, delayMs})
@@ -106,16 +123,13 @@ export async function processBlock(opts: {
     block.errors = errors
   }
 
-  block.output = (result.data as SourceData) ?? {}
-  block.error = result.error
-  block.options = {retries, timeout}
-  block.state = result.error ? RunState.Failed : RunState.Completed
-  block.end = new Date().toISOString()
-  block.duration = Date.parse(block.end) - Date.parse(block.start)
+  const output = new ResultBuilder(block).withResult(result).build()
+  const end = performance.now()
+  output.duration = end - start
 
-  event?.(BlockEvent.Ended, {block})
+  event?.(BlockEvent.Ended, {block: output})
 
-  return block
+  return output
 }
 
 export const rejectionHandler = (block: Block) => {

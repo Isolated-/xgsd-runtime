@@ -249,6 +249,7 @@ export const createRuntime = async (opts: {
 export const emit = async <T = unknown>(hooks: Hooks[], event: string, payload: T) => {
   for (const hook of hooks) {
     if (!hook.on || typeof hook.on !== 'function') continue
+    if (hook.events && !hook.events.includes(event)) continue
 
     await hook.on(event, payload)
   }

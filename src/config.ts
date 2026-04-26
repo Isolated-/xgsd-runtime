@@ -4,7 +4,7 @@ import {join} from 'path'
 import * as yaml from 'yaml'
 import {deepmerge2} from './util/object.util'
 import {createHash} from 'crypto'
-import {SourceData} from '@xgsd/engine'
+import {SourceData, WrappedError} from '@xgsd/engine'
 import {EventBus} from './event'
 import {ExecutionMode, Runnable} from './process/orchestration.process'
 import {RunState} from './types/state.types'
@@ -12,6 +12,43 @@ import ms from 'ms'
 
 // TODO: extract most of this into @xgsd/runtime as staged builders
 // TODO: add result builder for finalising outputs vs hardcoding them in processBlock()
+
+export class ResultBuilder {
+  private result: any
+  private errors: WrappedError[] = []
+
+  constructor(private block: Block) {}
+
+  withResult(result: {data: any; error: any}): this {
+    this.result = result
+    return this
+  }
+
+  withErrors(errors: WrappedError[]) {
+    this.errors = errors
+    return this
+  }
+
+  build() {
+    if (!this.result) {
+      throw new Error('result has not been provided')
+    }
+
+    const {block, result} = this
+
+    block.output = (result.data as SourceData) ?? {}
+    block.error = result.error ?? this.errors[0] ?? null
+    //    block.options = {retries, timeout}
+
+    block.attempt = this.errors.length
+    block.errors = this.errors
+    block.state = result.error ? RunState.Failed : RunState.Completed
+    block.end = new Date().toISOString()
+    block.duration = Date.parse(block.end) - Date.parse(block.start!)
+
+    return block
+  }
+}
 
 export function getPackageVersion(input: string): string {
   try {
@@ -65,7 +102,7 @@ export type Context<T extends SourceData = SourceData> = {
   concurrency: number
   lite: boolean
   data: SourceData
-  output: SourceData
+  output: SourceData // <- actually implemented as an array of Blocks
   blockCount: number
   blocks: T[]
   state: RunState
@@ -73,7 +110,7 @@ export type Context<T extends SourceData = SourceData> = {
   end: string | null
   outputPath: string
   bus: EventBus<any>
-  env: Record<string, any>
+  environment: Record<string, any>
   config: {project: T; blocks: T[]}
 }
 
@@ -176,15 +213,15 @@ export class ContextFinalStage<T extends Record<string, unknown>> {
     }
 
     const blocks = this.ctx.config?.blocks
-    this.ctx.blocks = blocks?.map((block) => {
-      return createBlockContext(block) as any
+    this.ctx.blocks = blocks?.map((block, idx) => {
+      return createBlockContext(block, idx) as any
     })
 
     return this
   }
 
   env(): this {
-    this.ctx.env = {
+    this.ctx.environment = {
       node: process.version,
       runtime: getPackageVersion('@xgsd/runtime'),
       platform: process.platform,
@@ -231,6 +268,7 @@ type BlockOpts = {
 }
 
 export type BlockContext<T extends SourceData = SourceData> = {
+  idx: number
   name: string
   enabled: boolean
   run: string
@@ -249,11 +287,13 @@ export type BlockContext<T extends SourceData = SourceData> = {
 
 export type Block<T extends SourceData = SourceData> = BlockContext<T> & Runnable
 
-export const createBlockContext = (block: Partial<Block>): BlockContext<SourceData> => {
+export const createBlockContext = (block: Partial<Block>, idx: number): BlockContext<SourceData> => {
   return new BlockContextBuilderRunStage()
     .run(block.run!)
     .input(block.input ?? {})
-    .disable(!block.enabled)
+    .disable(block.enabled === false)
+    .index(idx)
+    .env(block.env ?? {})
     .state(RunState.Pending)
     .name(block.name)
     .options(block.options)
@@ -301,6 +341,11 @@ export class BlockContextBuilderFinalStage {
   env(env: Record<string, unknown>): this {
     this.ctx.env = env
 
+    return this
+  }
+
+  index(idx: number): this {
+    this.ctx.idx = idx
     return this
   }
 

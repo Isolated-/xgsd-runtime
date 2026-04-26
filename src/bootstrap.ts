@@ -8,6 +8,7 @@ import {ExecutorInput, LoggerInput, OrchestratorInput, PluginInput} from './type
 import {ExecutionMode} from './process/orchestration.process'
 import {ProjectEvent, SystemEvent} from './types/events.types'
 import {RunState} from './types/state.types'
+import {deepmerge2} from './util/object.util'
 
 export const dispatchToManagers = async (opts: {
   managers: Manager[]
@@ -37,11 +38,14 @@ export type RuntimePresetFunction = (opts?: Record<string, unknown>) => RuntimeP
 
 export const bootstrap = async <T extends SourceData>(opts: {
   ctx: Context<T>
+  summary?: any
   preset: RuntimePreset
   stream: EventBusAdapter
 }) => {
   const start = performance.now()
-  const {preset, stream, ctx} = opts
+  const {preset, stream, ctx, summary} = opts
+
+  ctx.start = new Date().toISOString()
 
   const bus = new EventBus(stream)
   const {pluginManager, loggerManager, orchestrator} = await createRuntime({
@@ -54,7 +58,7 @@ export const bootstrap = async <T extends SourceData>(opts: {
   attachManagerLifecycleListeners(pluginManager, bus)
 
   // this has to be here otherwise plugins/loggers never get this event
-  await bus.emit(SystemEvent.Started, {})
+  await bus.emit(SystemEvent.Started, {summary})
 
   await dispatchToManagers({
     ctx,
@@ -73,9 +77,12 @@ export const bootstrap = async <T extends SourceData>(opts: {
   const results = await orchestrator.orchestrate(ctx.data, ctx.blocks as any[])
   const projectEnd = performance.now()
 
+  const output = results[results.length - 1].output
+
   await bus.emit(ProjectEvent.Ended, {
     context: {
       ...ctx,
+      output,
       state: RunState.Completed,
       end: new Date().toISOString(),
     },
@@ -93,6 +100,7 @@ export const bootstrap = async <T extends SourceData>(opts: {
   const duration = ended - start
 
   await bus.emit(SystemEvent.Ended, {
+    summary,
     bootstrapDuration: duration,
     projectDuration,
   })

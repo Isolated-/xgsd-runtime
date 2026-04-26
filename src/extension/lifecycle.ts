@@ -3,7 +3,7 @@ import {Manager} from '../types/generics/manager.interface'
 import {LoggerManager} from './loggers/logger.manager'
 import {EventBus, EventBusAdapter} from '../event'
 
-const EVENT_MAP = {
+export const EVENT_MAP = {
   // project events
   [ProjectEvent.Started]: ProjectEvent.Started,
   [ProjectEvent.Ended]: ProjectEvent.Ended,
@@ -21,7 +21,7 @@ const EVENT_MAP = {
   [SystemEvent.ExtensionUnloaded]: SystemEvent.ExtensionUnloaded,
   [SystemEvent.Started]: SystemEvent.Started,
   [SystemEvent.Ended]: SystemEvent.Ended,
-} as const
+}
 
 export type EventHandler<T = unknown> = (payload: T) => void | Promise<void>
 
@@ -65,6 +65,7 @@ export const attachManagerLifecycleListeners = (manager: Manager, bus: EventBus<
   }
 }
 
+// TODO: remove loggers bound to events, essentially duplication of a plugin with a .log() method
 export const bindEventBusToLoggerManager = (bus: EventBus<EventBusAdapter>, manager: LoggerManager) => {
   const disposers: Array<() => void> = []
 

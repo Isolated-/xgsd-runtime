@@ -2,6 +2,7 @@ import {Context} from '../config'
 
 export interface Hooks {
   name?: string
+  events?: string[]
 
   // new event handler
   // generic to avoid need to add more events

@@ -24,12 +24,15 @@ const saveTemperature = async (data) => {
     fs.writeFileSync(data.file, '')
   }
 
-  const {unit, temperature, time} = data
-  fs.appendFileSync(data.file, `${temperature}${unit} in London (${new Date(time).toDateString()})\r\n`)
+  const {message} = data
+  fs.appendFileSync(data.file, `${message}\r\n`)
 }
+
+const disabledAction = async (data) => {}
 
 // export actions/hooks
 module.exports = {
   getTemperature,
   saveTemperature,
+  disabledAction,
 }

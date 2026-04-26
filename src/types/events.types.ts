@@ -52,8 +52,11 @@ export type Events = {
   [BlockEvent.Waiting]: {
     block: Block
   }
-  [SystemEvent.Started]: {}
+  [SystemEvent.Started]: {
+    summary: any
+  }
   [SystemEvent.Ended]: {
+    summary: any
     bootstrapDuration: number
     projectDuration: number
   }

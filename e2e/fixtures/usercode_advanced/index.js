@@ -1,6 +1,14 @@
 class MyExecutor {
-  async run(block, ctx) {}
+  async run(block, ctx) {
+    return {
+      ...block,
+      state: 'completed',
+      errors: [],
+      error: null,
+    }
+  }
 }
+
 class MyOrchestrator {
   async orchestrate(data, blocks) {
     return blocks
@@ -8,7 +16,9 @@ class MyOrchestrator {
 }
 
 module.exports = {
-  runWithCustomOrchestrator: (data) => {},
+  runWithCustomOrchestrator: (data) => {
+    return data
+  },
   setup: (xgsd) => {
     xgsd.executor(MyExecutor)
     xgsd.orchestrator(MyOrchestrator)

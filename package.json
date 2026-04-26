@@ -24,9 +24,9 @@
   "scripts": {
     "build": "yarn clean && tsup",
     "clean": "rm -rf dist",
-    "test": "yarn clean && jest ./src",
-    "test:integration": "yarn clean && jest ./tests",
-    "test:e2e": "yarn clean && jest ./e2e"
+    "test": "jest ./src",
+    "test:integration": "jest ./tests",
+    "test:e2e": "jest ./e2e"
   },
   "devDependencies": {
     "@oclif/prettier-config": "^0.2.1",
@@ -41,7 +41,8 @@
   "dependencies": {
     "@types/fs-extra": "^11.0.4",
     "@types/ms": "^2.1.0",
-    "@xgsd/engine": "0.1.1",
+    "@xgsd/engine": "../xgsd-core",
+    "dotenv": "^17.4.2",
     "fs-extra": "^11.3.4",
     "joi": "^18.1.2",
     "ms": "^2.1.3",

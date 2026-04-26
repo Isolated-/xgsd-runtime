@@ -1031,10 +1031,8 @@
   dependencies:
     "@types/yargs-parser" "*"
 
-"@xgsd/engine@0.1.1":
-  version "0.1.1"
-  resolved "https://registry.yarnpkg.com/@xgsd/engine/-/engine-0.1.1.tgz#760fe21f6bf0c44592fc2613d4146e0d7492d0fd"
-  integrity sha512-Tovh4Q6nGRM6TAl67szODYn+QL8wkYYPtp5MZe2SGshPQJK3PsorIR3I3k8cRPCwsWSJnkwcuih60DMz9CLSWg==
+"@xgsd/engine@../xgsd-core":
+  version "0.1.0"
 
 acorn-walk@^8.1.1:
   version "8.3.5"
@@ -1396,6 +1394,11 @@ diff@^4.0.1:
   version "4.0.4"
   resolved "https://registry.yarnpkg.com/diff/-/diff-4.0.4.tgz#7a6dbfda325f25f07517e9b518f897c08332e07d"
   integrity sha512-X07nttJQkwkfKfvTPG/KSnE2OMdcUCao6+eXF3wmnIQRn2aPAHH3VxDbDOdegkd6JbPsXqShpvEOHfAT+nCNwQ==
+
+dotenv@^17.4.2:
+  version "17.4.2"
+  resolved "https://registry.yarnpkg.com/dotenv/-/dotenv-17.4.2.tgz#c07e54a746e11eba021dd9e1047ced5afdc1c034"
+  integrity sha512-nI4U3TottKAcAD9LLud4Cb7b2QztQMUEfHbvhTH09bqXTxnSie8WnjPALV/WMCrJZ6UV/qHJ6L03OqO3LcdYZw==
 
 electron-to-chromium@^1.5.328:
   version "1.5.340"

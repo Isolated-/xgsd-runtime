@@ -8,6 +8,7 @@ export type EventEnvelope<K extends string, T> = {
 
 export type EventBusAdapter = {
   on: (event: string, handler: (...args: any[]) => void) => void
+  once: (event: string, handler: (...args: any[]) => void) => void
   off: (event: string, handler: (...args: any[]) => void) => void
   emit: (event: string, payload: any) => any
 }
@@ -28,7 +29,18 @@ export class EventBus<T extends EventBusAdapter, E extends Events = Events> {
 
     this.stream.on(event as string, wrapped)
 
-    return () => this.off(event, handler as any)
+    return () => {
+      this.stream.off(event as string, wrapped)
+    }
+  }
+
+  once<K extends keyof E>(event: K, handler: (e: EventEnvelope<K & string, E[K]>) => Promise<void> | void): () => void {
+    const wrapped = async (payload: E[K]) => {
+      await handler({...(payload as any)})
+    }
+
+    this.stream.once(event as string, wrapped)
+    return () => this.stream.off(event as string, wrapped)
   }
 
   off<K extends keyof E>(event: K, handler: (...args: any[]) => void): void {

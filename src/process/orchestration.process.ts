@@ -49,7 +49,7 @@ export async function executeRunnables<T extends Runnable<SourceData>, C extends
     // "data" (comes from config) is merged with the output
     // so that top-level data isn't lost
     if (options.mode === 'chain') {
-      data = deepmerge2(data, result.output!)
+      data = deepmerge2(input, result.output!)
     }
 
     results.push(result)
