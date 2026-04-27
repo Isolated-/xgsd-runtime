@@ -40,11 +40,14 @@ export class ResultBuilder {
     block.error = result.error ?? this.errors[0] ?? null
     //    block.options = {retries, timeout}
 
-    block.attempt = this.errors.length
     block.errors = this.errors
+
+    // don't assign this to errors length anymore
+    // as errors may be deduped
+    block.attempt = block.attempt ?? 0
+
     block.state = result.error ? RunState.Failed : RunState.Completed
     block.end = new Date().toISOString()
-    block.duration = Date.parse(block.end) - Date.parse(block.start!)
 
     return block
   }
