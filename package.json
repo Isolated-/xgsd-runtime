@@ -1,7 +1,7 @@
 {
   "name": "@xgsd/runtime",
   "description": "lightweight orchestration library used by xGSD apps",
-  "version": "0.0.3",
+  "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -41,7 +41,7 @@
   "dependencies": {
     "@types/fs-extra": "^11.0.4",
     "@types/ms": "^2.1.0",
-    "@xgsd/engine": "../xgsd-core",
+    "@xgsd/engine": "0.1.2",
     "dotenv": "^17.4.2",
     "fs-extra": "^11.3.4",
     "joi": "^18.1.2",

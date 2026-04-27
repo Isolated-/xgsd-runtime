@@ -8,7 +8,19 @@ import {Executor} from '../types/generics/executor.interface'
 import {FatalError} from '../error'
 import {BlockEvent, ProjectEvent} from '../types/events.types'
 import {RunState} from '../types/state.types'
-import {interpolate} from '../process/block.process'
+
+const TEMPLATE_RE = /\{\{([^}]+)\}\}/g
+
+export function interpolate(template: string, ctx: any) {
+  return template.replace(TEMPLATE_RE, (_, expr) => {
+    const value = expr
+      .trim()
+      .split('.')
+      .reduce((acc: any, key: any) => acc?.[key], ctx)
+
+    return value == null ? '' : String(value)
+  })
+}
 
 // resolve block templates
 function resolveBlockTemplateFromObject(object: Record<string, any>, data: Record<string, any>): any {
