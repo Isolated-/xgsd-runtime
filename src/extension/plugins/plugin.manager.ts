@@ -7,14 +7,12 @@ import {EVENT_MAP} from '../lifecycle'
 import {ProjectEvent} from '../../types/events.types'
 
 export class PluginManager implements Manager {
-  private ctx!: Context
   constructor(
     private plugins: Hooks[],
     private bus: EventBus<EventBusAdapter>,
   ) {}
 
   async init(ctx: Context): Promise<void> {
-    this.ctx = ctx
     return runInit(this.plugins, ctx, this.bus)
   }
 

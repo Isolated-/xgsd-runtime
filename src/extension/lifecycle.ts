@@ -21,6 +21,7 @@ export const EVENT_MAP = {
   [SystemEvent.ExtensionUnloaded]: SystemEvent.ExtensionUnloaded,
   [SystemEvent.Started]: SystemEvent.Started,
   [SystemEvent.Ended]: SystemEvent.Ended,
+  [SystemEvent.SystemMessage]: SystemEvent.SystemMessage,
 }
 
 export type EventHandler<T = unknown> = (payload: T) => void | Promise<void>

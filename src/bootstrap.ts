@@ -1,4 +1,4 @@
-import {attachManagerLifecycleListeners, bindEventBusToLoggerManager} from './extension/lifecycle'
+import {attachManagerLifecycleListeners} from './extension/lifecycle'
 import {createRuntime} from './extension/util'
 import {BlockContext, Context} from './config'
 import {SourceData} from '@xgsd/engine'
@@ -8,7 +8,6 @@ import {ExecutorInput, LoggerInput, OrchestratorInput, PluginInput} from './type
 import {ExecutionMode} from './process/orchestration.process'
 import {ProjectEvent, SystemEvent} from './types/events.types'
 import {RunState} from './types/state.types'
-import {deepmerge2} from './util/object.util'
 
 export const dispatchToManagers = async (opts: {
   managers: Manager[]
@@ -48,13 +47,12 @@ export const bootstrap = async <T extends SourceData>(opts: {
   ctx.start = new Date().toISOString()
 
   const bus = new EventBus(stream)
-  const {pluginManager, loggerManager, orchestrator} = await createRuntime({
+  const {pluginManager, orchestrator} = await createRuntime({
     ctx,
     bus,
     preset,
   })
 
-  bindEventBusToLoggerManager(bus, loggerManager)
   attachManagerLifecycleListeners(pluginManager, bus)
 
   // this has to be here otherwise plugins/loggers never get this event
@@ -62,7 +60,7 @@ export const bootstrap = async <T extends SourceData>(opts: {
 
   await dispatchToManagers({
     ctx,
-    managers: [loggerManager, pluginManager],
+    managers: [pluginManager],
     type: 'init',
   })
 
@@ -91,7 +89,7 @@ export const bootstrap = async <T extends SourceData>(opts: {
 
   await dispatchToManagers({
     ctx,
-    managers: [loggerManager, pluginManager],
+    managers: [pluginManager],
     type: 'exit',
   })
 
@@ -104,4 +102,6 @@ export const bootstrap = async <T extends SourceData>(opts: {
     bootstrapDuration: duration,
     projectDuration,
   })
+
+  return {projectDuration, results}
 }

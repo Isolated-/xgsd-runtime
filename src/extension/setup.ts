@@ -3,10 +3,8 @@ import {PluginManager} from './plugins/plugin.manager'
 import {ExecutorInput, LoggerInput, OrchestratorFactory, OrchestratorInput, PluginInput} from '../types/factory.types'
 import {resolveFactory, resolveOrchestrator} from './util'
 import {LoggerRegistry} from './loggers/logger.registry'
-import {LoggerManager} from './loggers/logger.manager'
 import {Context} from '../config'
 import {Hooks} from '../types/hooks.types'
-import {Logger} from '../types/interfaces/logger.interface'
 import {EventBus, EventBusAdapter} from '../event'
 import {Executor} from '../types/generics/executor.interface'
 import {Orchestrator} from '../types/generics/orchestrator.interface'
@@ -22,7 +20,6 @@ export type SetupOpts = {
 
 export class SetupContainer {
   private pluginRegistry: PluginRegistry
-  private loggerRegistry: LoggerRegistry
   private bus: EventBus<EventBusAdapter>
 
   private executorFactory?: (ctx: Context) => Executor
@@ -30,16 +27,11 @@ export class SetupContainer {
 
   constructor(opts?: SetupOpts) {
     this.pluginRegistry = opts?.pluginRegistry || new PluginRegistry()
-    this.loggerRegistry = opts?.loggerRegistry || new LoggerRegistry()
     this.bus = opts?.bus!
   }
 
   use(plugin: PluginInput) {
     this.pluginRegistry.use(plugin)
-  }
-
-  logger(logger: LoggerInput) {
-    this.loggerRegistry.use(logger)
   }
 
   executor(input: ExecutorInput) {
@@ -52,18 +44,17 @@ export class SetupContainer {
 
   async build(context: Context): Promise<{
     pluginManager: PluginManager
-    loggerManager: LoggerManager
     orchestrator: Orchestrator
     executor: Executor
   }> {
     const plugins: Hooks[] = this.pluginRegistry.build(context)
-    const loggers: Logger[] = this.loggerRegistry.build(context)
+    //const loggers: Logger[] = this.loggerRegistry.build(context)
 
     const pluginManager = new PluginManager(plugins, this.bus)
-    const loggerManager = new LoggerManager(loggers, this.bus)
+    //const loggerManager = new LoggerManager(loggers, this.bus)
 
     if (!this.executorFactory) {
-      throw new FatalError('an executor has not been configured, call .orchestrator()', FatalErrorCode.NoExecutor)
+      throw new FatalError('an executor has not been configured, call .executor()', FatalErrorCode.NoExecutor)
     }
 
     if (!this.orchestratorFactory) {
@@ -78,7 +69,6 @@ export class SetupContainer {
 
     return {
       pluginManager,
-      loggerManager,
       executor,
       orchestrator,
     }

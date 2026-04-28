@@ -73,10 +73,6 @@ export type Extension = {
 
 export const runInit = async <T extends Extension>(items: T[], ctx: Context, bus?: EventBus<EventBusAdapter>) => {
   for (const item of items) {
-    if (item.init) {
-      await item.init(ctx)
-    }
-
     if (bus) {
       await bus.emit<SystemEvent.ExtensionLoaded>(SystemEvent.ExtensionLoaded, {
         name: item.name ?? 'anonymous',
@@ -84,15 +80,17 @@ export const runInit = async <T extends Extension>(items: T[], ctx: Context, bus
         type: item.type!,
       })
     }
+
+    try {
+      if (item.init && typeof item.init === 'function') {
+        await item.init(ctx)
+      }
+    } catch (error) {}
   }
 }
 
 export const runExit = async <T extends Extension>(items: T[], ctx: Context, bus?: EventBus<EventBusAdapter>) => {
   for (const item of items) {
-    if (item.exit) {
-      await item.exit(ctx)
-    }
-
     if (bus) {
       await bus.emit<SystemEvent.ExtensionUnloaded>(SystemEvent.ExtensionUnloaded, {
         name: item.name ?? 'anonymous',
@@ -100,6 +98,12 @@ export const runExit = async <T extends Extension>(items: T[], ctx: Context, bus
         type: item.type!,
       })
     }
+
+    try {
+      if (item.exit && typeof item.exit === 'function') {
+        await item.exit(ctx)
+      }
+    } catch (error) {}
   }
 }
 
@@ -251,6 +255,11 @@ export const emit = async <T = unknown>(hooks: Hooks[], event: string, payload: 
     if (!hook.on || typeof hook.on !== 'function') continue
     if (hook.events && !hook.events.includes(event)) continue
 
-    await hook.on(event, payload)
+    try {
+      await hook.on(event, payload)
+    } catch (error) {
+      // TODO: determine error handling strategy
+      // for plugins throwing errors in on()
+    }
   }
 }

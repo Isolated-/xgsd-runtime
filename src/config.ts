@@ -478,7 +478,7 @@ export class ConfigBuilderParseStage {
 }
 
 export class ConfigBuilderValidateStage {
-  constructor(private readonly config: Partial<UserConfig>) {}
+  constructor(private readonly _config: Partial<UserConfig>) {}
 }
 
 export class ConfigBuilderFinalStage {

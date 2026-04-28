@@ -2,18 +2,11 @@ import {SourceData} from '@xgsd/engine'
 import {Block, Context} from '../../config'
 import {Executor} from '../../types/generics/executor.interface'
 import {Orchestrator} from '../../types/generics/orchestrator.interface'
-import {Logger, LogMessage} from '../../types/interfaces/logger.interface'
 import {Plugin} from '../../types/interfaces/plugin.interface'
-import {LoggerManager} from '../loggers/logger.manager'
 import {PluginManager} from '../plugins/plugin.manager'
 import {SetupContainer} from '../setup'
 
 class MockPlugin implements Plugin {}
-class MockLogger implements Logger {
-  log(event: string, payload: any): Promise<void> | void {
-    throw new Error('Method not implemented.')
-  }
-}
 
 class MockExecutor implements Executor {
   run(block: Block<any>, context: Context<any>): Promise<Block<any>> {
@@ -40,21 +33,6 @@ test('.use() should accept plugins correctly', () => {
   // ensure setup.use() just passes input without mutation
   expect(use).toHaveBeenCalledTimes(1)
   expect(use).toHaveBeenCalledWith(MockPlugin)
-})
-
-test('.logger() should accept loggers correctly', () => {
-  const use = jest.fn()
-  const setup = new SetupContainer({
-    loggerRegistry: {
-      use,
-    } as any,
-  })
-
-  expect(() => setup.logger(MockLogger)).not.toThrow()
-
-  // ensure setup.use() just passes input without mutation
-  expect(use).toHaveBeenCalledTimes(1)
-  expect(use).toHaveBeenCalledWith(MockLogger)
 })
 
 test('.executor() should accept executors correctly', () => {
@@ -107,17 +85,6 @@ test('.build() returns pluginManager', async () => {
 
   const {pluginManager} = await setup.build({} as any)
   expect(pluginManager).toBeInstanceOf(PluginManager)
-})
-
-test('.build() returns loggerManager', async () => {
-  const setup = new SetupContainer()
-
-  setup.logger(MockLogger)
-  setup.executor(MockExecutor)
-  setup.orchestrator(MockOrchestrator)
-
-  const {loggerManager} = await setup.build({} as any)
-  expect(loggerManager).toBeInstanceOf(LoggerManager)
 })
 
 test('.build() returns orchestrator', async () => {
