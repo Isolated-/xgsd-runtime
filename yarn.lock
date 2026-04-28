@@ -1031,8 +1031,10 @@
   dependencies:
     "@types/yargs-parser" "*"
 
-"@xgsd/engine@../xgsd-core":
-  version "0.1.0"
+"@xgsd/engine@0.1.2":
+  version "0.1.2"
+  resolved "https://registry.yarnpkg.com/@xgsd/engine/-/engine-0.1.2.tgz#27d2c9adf683ab9fa5a26319efd963b429a2127b"
+  integrity sha512-Q2NfebeCl+3SBat9jszQghs0VLs5z3jVvUue/CioYvhf2x63JsB6cUsh9P09fHlSD7i6kPKhQK8ckyq4Vfki9w==
 
 acorn-walk@^8.1.1:
   version "8.3.5"
