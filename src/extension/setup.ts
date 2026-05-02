@@ -1,19 +1,18 @@
 import {PluginRegistry} from './plugins/plugin.registry'
 import {PluginManager} from './plugins/plugin.manager'
-import {ExecutorInput, LoggerInput, OrchestratorFactory, OrchestratorInput, PluginInput} from '../types/factory.types'
+import {ExecutorInput, OrchestratorInput, PluginInput} from '../types/factory.types'
 import {resolveFactory, resolveOrchestrator} from './util'
-import {LoggerRegistry} from './loggers/logger.registry'
-import {Context} from '../config'
 import {Hooks} from '../types/hooks.types'
 import {EventBus, EventBusAdapter} from '../event'
 import {Executor} from '../types/generics/executor.interface'
 import {Orchestrator} from '../types/generics/orchestrator.interface'
 import {FatalError, FatalErrorCode} from '../error'
+import {UserHooksPlugin} from './plugins/builtin/userhooks.plugin'
+import {Context} from '../types/context.types'
 
 export type SetupOpts = {
   // di
   pluginRegistry?: PluginRegistry
-  loggerRegistry?: LoggerRegistry
 
   bus?: EventBus<EventBusAdapter>
 }
@@ -47,6 +46,8 @@ export class SetupContainer {
     orchestrator: Orchestrator
     executor: Executor
   }> {
+    this.pluginRegistry.use(UserHooksPlugin, true)
+
     const plugins: Hooks[] = this.pluginRegistry.build(context)
     //const loggers: Logger[] = this.loggerRegistry.build(context)
 

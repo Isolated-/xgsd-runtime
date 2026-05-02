@@ -26,7 +26,8 @@
     "clean": "rm -rf dist",
     "test": "jest ./src",
     "test:integration": "jest ./tests",
-    "test:e2e": "jest ./e2e"
+    "test:e2e": "jest ./e2e",
+    "docs": "typedoc"
   },
   "devDependencies": {
     "@oclif/prettier-config": "^0.2.1",
@@ -36,12 +37,15 @@
     "ts-jest": "^29.x",
     "ts-node": "^10.9.2",
     "tsup": "^8.5.1",
+    "typedoc": "^0.28.19",
+    "typedoc-plugin-markdown": "^4.11.0",
     "typescript": "^5.x"
   },
   "dependencies": {
     "@types/fs-extra": "^11.0.4",
     "@types/ms": "^2.1.0",
     "@xgsd/engine": "0.1.2",
+    "@xgsd/uniqid": "^0.1.0",
     "dotenv": "^17.4.2",
     "fs-extra": "^11.3.4",
     "joi": "^18.1.2",

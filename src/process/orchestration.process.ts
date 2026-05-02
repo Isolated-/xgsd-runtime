@@ -1,6 +1,6 @@
 import {RunFn, runWithConcurrency, SourceData} from '@xgsd/engine'
-import {Block, Context} from '../config'
 import {deepmerge2} from '../util/object.util'
+import {Block, Context} from '../types/context.types'
 
 export type ExecutionMode = 'async' | 'chain' | 'fanout' | 'batched'
 

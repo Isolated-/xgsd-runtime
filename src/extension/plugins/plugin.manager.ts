@@ -1,10 +1,8 @@
 import {Manager} from '../../types/generics/manager.interface'
 import {Hooks} from '../../types/hooks.types'
 import {emit, runExit, runInit} from '../util'
-import {Context} from '../../config'
 import {EventBus, EventBusAdapter} from '../../event'
-import {EVENT_MAP} from '../lifecycle'
-import {ProjectEvent} from '../../types/events.types'
+import {Context} from '../../types/context.types'
 
 export class PluginManager implements Manager {
   constructor(

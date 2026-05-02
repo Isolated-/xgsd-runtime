@@ -1,12 +1,59 @@
 // this will eventually become its own library (@xgsd/sdk)
 import {retry as coreRetry, execute as coreExecute, RunFn, SourceData, RetryAttempt, withTimeout} from '@xgsd/engine'
 import {getBackoffStrategy} from './backoff'
-import {RuntimePreset, RuntimePresetFunction} from './bootstrap'
+import {ConfigBuilderLoadStage} from './builders/config.builder'
+import {EventBus, EventBusAdapter} from './event'
+import {ProjectConfig} from './types/config.types'
+import {join} from 'path'
+import {ContextSetupStage} from './builders/context.builder'
+import {RuntimePresetFunction, RuntimePreset} from './types/runtime-preset.types'
+import {v4} from 'uuid'
 
 export type RetryOpts = {
   retries?: number
   timeout?: number
   backoff?: 'linear' | 'exponential' | 'squaring' | 'manual'
+}
+export const createContext = <T = unknown>(opts: {
+  path: string
+  activation: 'manual' | 'http'
+  config: ProjectConfig
+  bus: EventBus<EventBusAdapter>
+  data: T
+}) => {
+  const {path, config, bus, data} = opts
+  return new ContextSetupStage()
+    .project(path)
+    .entry(join(path, config.entry!))
+    .config(config)
+    .bus(bus)
+    .id(v4)
+    .name()
+    .version()
+    .hash()
+    .activation(opts.activation)
+    .data(opts.data ?? {})
+    .mode()
+    .env()
+    .concurrency(config.concurrency)
+    .blocks()
+    .blockCount()
+    .build()
+}
+
+export const createConfig = (opts: {
+  configPath: string
+  packageJsonPath: string
+  validator: (input: Partial<ProjectConfig>) => ProjectConfig
+}) => {
+  const {validator, configPath, packageJsonPath} = opts
+
+  return new ConfigBuilderLoadStage(configPath)
+    .load()
+    .parse()
+    .validate(validator)
+    .defaultFromPackageJson(packageJsonPath)
+    .build()
 }
 
 /**
@@ -68,7 +115,6 @@ export function composePresetWithOpts(args: {
   const reversed = [...compiled].reverse()
 
   return {
-    loggers: compiled.flatMap((p) => p.loggers ?? []),
     plugins: compiled.flatMap((p) => p.plugins ?? []),
     executor: reversed.find((p) => p.executor)?.executor,
     orchestrator: reversed.find((p) => p.orchestrator)?.orchestrator,

@@ -1,10 +1,10 @@
 import {SourceData} from '@xgsd/engine'
-import {Block, Context} from '../../config'
 import {Executor} from '../../types/generics/executor.interface'
 import {Orchestrator} from '../../types/generics/orchestrator.interface'
 import {Plugin} from '../../types/interfaces/plugin.interface'
 import {PluginManager} from '../plugins/plugin.manager'
 import {SetupContainer} from '../setup'
+import {Block, Context} from '../../types/context.types'
 
 class MockPlugin implements Plugin {}
 
@@ -15,7 +15,7 @@ class MockExecutor implements Executor {
 }
 
 export class MockOrchestrator implements Orchestrator {
-  async orchestrate(data: SourceData, blocks: Block[]): Promise<Block[]> {
+  async orchestrate(data: SourceData, blocks: Block[]): Promise<Context> {
     throw new Error('method not implemented')
   }
 }

@@ -10,8 +10,15 @@ class MyExecutor {
 }
 
 class MyOrchestrator {
+  constructor(ctx) {
+    this.ctx = ctx
+  }
+
   async orchestrate(data, blocks) {
-    return blocks
+    return {
+      ...this.ctx,
+      state: 'completed',
+    }
   }
 }
 
@@ -21,6 +28,6 @@ module.exports = {
   },
   setup: (xgsd) => {
     xgsd.executor(MyExecutor)
-    xgsd.orchestrator(MyOrchestrator)
+    xgsd.orchestrator((ctx) => new MyOrchestrator(ctx))
   },
 }

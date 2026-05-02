@@ -1,4 +1,4 @@
-import {Context} from '../config'
+import {Context} from './context.types'
 
 export interface Hooks {
   name?: string

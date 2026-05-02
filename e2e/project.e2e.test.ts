@@ -1,7 +1,7 @@
 import {
   BlockEvent,
   bootstrap,
-  ConfigParser,
+  createConfig,
   createContext,
   EventBus,
   InProcessExecutor,
@@ -16,48 +16,21 @@ import {DefaultOrchestrator} from '../src/orchestrators/default.orchestrator'
 
 const createApp = (pkg: string, data?: any) => {
   const path = join(pkg, 'config.yaml')
-  const stream = new EventEmitter2({wildcard: true})
-  const bus = new EventBus(stream)
 
-  const config = new ConfigParser(path)
-    .load()
-    .parse()
-    .default({
-      mode: 'async',
-      concurrency: 4,
-      blocks: [],
-    })
-    .validate((input) => input)
-    .build() as {project: any; blocks: any[]} // <- fix this up
-
-  const packageJson = join(pkg, 'package.json')
-  const content = readJsonSync(packageJson)
-
-  if (!content.main) {
-    throw new Error('no entry point found in package.json')
-  }
-
-  const entry = join(pkg, content.main)
-  const ctx = createContext(pkg)
-    .entry(entry)
-    .config(config)
-    .bus(bus)
-    .id(() => 'id')
-    .name()
-    .version()
-    .data(data ?? config.project.data)
-    .mode()
-    .concurrency(config.project.concurrency)
-    .blocks()
-    .blockCount()
-    .build()
+  const config = createConfig({
+    configPath: path,
+    packageJsonPath: join(pkg, 'package.json'),
+    validator: (input) => input,
+  })
 
   const preset: RuntimePreset = {
     executor: InProcessExecutor,
     orchestrator: DefaultOrchestrator,
   }
 
-  return {ctx, bus, stream, preset}
+  const bus = new EventBus(new EventEmitter2({wildcard: true}))
+
+  return {bus, config, preset}
 }
 
 const capture = <T = any>(bus: EventBus<any>, event: string) => {
@@ -136,15 +109,18 @@ test('successfully runs a real project in chained mode (no process isolation)', 
     rmSync(logFile)
   }
 
-  const {ctx, stream, bus, preset} = createApp(pkg)
+  const {config, bus, preset} = createApp(pkg)
 
   const finalEventPromise = capture(bus, ProjectEvent.Ended)
 
-  await bootstrap({
-    ctx,
-    stream,
+  const result = await bootstrap({
+    projectPath: pkg,
+    bus,
     preset,
+    config,
   })
+
+  console.log(result.blocks.map((b) => b.output))
 
   const finalEvent = (await finalEventPromise) as any
 
@@ -156,16 +132,15 @@ test('successfully runs a real project in chained mode (no process isolation)', 
 test('runs a project that completes with failed blocks (and retries enabled)', async () => {
   const pkg = join(__dirname, 'fixtures', 'usercode_failing_with_retry')
 
-  const {ctx, stream, bus, preset} = createApp(pkg, {
-    num: 1,
-  })
+  const {config, bus, preset} = createApp(pkg, {num: 1})
 
   const finalEventPromise = capture(bus, ProjectEvent.Ended)
   const retryCollector = collect(bus, BlockEvent.Retrying)
 
   await bootstrap({
-    ctx,
-    stream,
+    projectPath: pkg,
+    config,
+    bus,
     preset,
   })
 
@@ -177,7 +152,11 @@ test('runs a project that completes with failed blocks (and retries enabled)', a
   const finalEvent = await finalEventPromise
   const ref = retryEvents.reverse()[0]
 
-  assertRetryAttempt(ref, {attempt: 1, finalAttempt: true, errorMessage: 'something went wrong'})
+  assertRetryAttempt(ref, {
+    attempt: 1,
+    finalAttempt: true,
+    errorMessage: 'something went wrong',
+  })
 
   expect(finalEvent.output[0].state).toBe('failed')
 }, 30000)
@@ -185,16 +164,15 @@ test('runs a project that completes with failed blocks (and retries enabled)', a
 test('runs a project that completes with failed blocks (without retries enabled)', async () => {
   const pkg = join(__dirname, 'fixtures', 'usercode_failing_without_retry')
 
-  const {ctx, stream, bus, preset} = createApp(pkg, {
-    num: 1,
-  })
+  const {config, bus, preset} = createApp(pkg, {num: 1})
 
   const retryEventsCollector = collect(bus, BlockEvent.Retrying)
   const blockFailedPromise = capture(bus, BlockEvent.Failed)
 
   await bootstrap({
-    ctx,
-    stream,
+    projectPath: pkg,
+    config,
+    bus,
     preset,
   })
 
@@ -217,7 +195,7 @@ test('runs a project that completes with failed blocks (without retries enabled)
 test('runs an advanced project setup with custom Executor and Orchestrator', async () => {
   const pkg = join(__dirname, 'fixtures', 'usercode_advanced')
 
-  const {ctx, stream, bus, preset} = createApp(pkg, {
+  const {bus, config, preset} = createApp(pkg, {
     num: 1,
   })
 
@@ -226,7 +204,7 @@ test('runs an advanced project setup with custom Executor and Orchestrator', asy
   const startEventPromise = capture(bus, ProjectEvent.Started)
   const finalEventPromise = capture(bus, ProjectEvent.Ended)
 
-  await bootstrap({ctx, stream, preset})
+  await bootstrap({projectPath: pkg, bus, config, preset})
 
   const startEvent = await startEventPromise
   const finalEvent = await finalEventPromise
@@ -236,7 +214,6 @@ test('runs an advanced project setup with custom Executor and Orchestrator', asy
 
   expect(startEvent!.context.state).toBe('running')
   expect(finalEvent!.context.state).toBe('completed')
-  expect(finalEvent!.output).toHaveLength(1)
 })
 
 /**
@@ -268,13 +245,11 @@ function createCollectors<T extends string>(bus: EventBus<any>, events: T[]) {
 test('project runs dont emit more events than expected', async () => {
   const pkg = join(__dirname, 'fixtures', 'usercode_failing_with_retry')
 
-  const {ctx, stream, bus, preset} = createApp(pkg, {
-    num: 1,
-  })
+  const {config, bus, preset} = createApp(pkg, {num: 1})
 
   const collectors = createCollectors<string>(bus, EVENTS_TO_TRACK)
 
-  await bootstrap({ctx, stream, preset})
+  await bootstrap({projectPath: pkg, config, bus, preset})
 
   const results: Record<string, any[]> = {}
   for (const [name, collector] of Object.entries(collectors)) {

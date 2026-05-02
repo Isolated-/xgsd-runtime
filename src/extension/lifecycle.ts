@@ -1,7 +1,7 @@
 import {ProjectEvent, BlockEvent, SystemEvent} from '../types/events.types'
 import {Manager} from '../types/generics/manager.interface'
-import {LoggerManager} from './loggers/logger.manager'
 import {EventBus, EventBusAdapter} from '../event'
+import {normaliseContext} from '../builders/context.builder'
 
 export const EVENT_MAP = {
   // project events
@@ -33,10 +33,7 @@ export const cleanEventPayload = (payload: any) => {
     return payload
   }
 
-  const {bus, ...context} = payload.context
-  payload.context = {
-    ...context,
-  }
+  payload.context = normaliseContext(payload.context)
 
   return payload
 }
@@ -61,21 +58,6 @@ export const attachManagerLifecycleListeners = (manager: Manager, bus: EventBus<
   }
 
   // return cleanup so lifecycle can be detached
-  return () => {
-    for (const off of disposers) off()
-  }
-}
-
-// TODO: remove loggers bound to events, essentially duplication of a plugin with a .log() method
-export const bindEventBusToLoggerManager = (bus: EventBus<EventBusAdapter>, manager: LoggerManager) => {
-  const disposers: Array<() => void> = []
-
-  const off = bus.on('*.*', async ({event, payload}) => {
-    await manager.log(event, cleanEventPayload(payload))
-  })
-
-  disposers.push(off)
-
   return () => {
     for (const off of disposers) off()
   }

@@ -4,9 +4,10 @@ import {BlockEvent} from '../types/events.types'
 import {retry, WrappedError, RetryAttempt, SourceData, withTimeout} from '@xgsd/engine'
 import {getBackoffStrategy} from '../backoff'
 import {Events} from '../types/events.types'
-import {Block, Context, ResultBuilder} from '../config'
 import {ContextLike, importUserModuleRunFn} from '../extension/util'
 import {defaultWith, delayFor} from '../util/misc.util'
+import {Block, Context} from '../types/context.types'
+import {ResultBuilder} from '../builders/result.builder'
 
 export const log = (message: string, level: string = 'info') => {
   dispatchMessage('log', {log: {level, message, timestamp: new Date().toISOString()}}, true)
@@ -61,11 +62,11 @@ export async function processBlock(opts: {
   event?.(BlockEvent.Started, {block})
 
   // TODO: implement waiting/delay
-  if (block.options?.delay && block.options.delay !== '0s' && block.options.delay !== 0) {
+  /*if (block.options?.delay && block.options.delay !== '0s' && block.options.delay !== 0) {
     //const delayMs = getDurationNumber(block.options.delay as string) || 0
     //event?.(BlockEvent.Waiting, {block, delayMs})
     //await delayFor(delayMs || 0)
-  }
+  }*/
 
   const method = defaultWith('exponential', block.options?.backoff)
   const delayFn = getBackoffStrategy(method as string)
@@ -79,7 +80,7 @@ export async function processBlock(opts: {
   const timeout = options.timeout as number
 
   let errors: WrappedError[] = []
-  const result = await retry(block.input, block.fn!, retries, {
+  const result = (await retry(block.input, block.fn!, retries!, {
     timeoutWrapper: withTimeout(timeout),
     backoff: delayFn,
     onAttempt: async (a) => {
@@ -91,7 +92,11 @@ export async function processBlock(opts: {
 
       event?.(BlockEvent.Retrying, {block, attempt: a})
     },
-  })
+  })) as any
+
+  if (result.data !== null && result.data !== undefined && typeof result.data !== 'object') {
+    result.data = {data: result.data}
+  }
 
   const end = performance.now()
 

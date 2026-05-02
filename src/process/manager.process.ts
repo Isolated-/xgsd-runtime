@@ -2,17 +2,17 @@ import {fork} from 'child_process'
 import {RunState} from '../types/state.types'
 import {FatalError, FatalErrorCode} from '../error'
 import {BlockEvent, SystemEvent} from '../types/events.types'
-import {LoggerLevel} from '../types/interfaces/logger.interface'
-import {Block, BlockContext, Context, getPackageVersion} from '../config'
 import {pathExistsSync, readFileSync, readJsonSync} from 'fs-extra'
 import {parse} from 'dotenv'
 import * as path from 'path'
+import {Block, Context} from '../types/context.types'
+import {getPackageVersion} from '../config'
 
 export const event = (name: string, payload: object) => {
   process.send!({type: 'PARENT:EVENT', event: name, payload})
 }
 
-const log = async (message: string, level: LoggerLevel, context?: Context, block?: Block) => {
+const log = async (message: string, level: string, context?: Context, block?: Block) => {
   if (context?.bus) {
     await context.bus.emit(SystemEvent.SystemMessage, {
       level,
@@ -124,7 +124,7 @@ export class ProcessManager {
       env: {
         XGSD_VERSION: getPackageVersion('@xgsd/runtime'),
         PROJECT_NAME: this.context.name ?? 'not set',
-        PROJECT_PATH: this.context.packagePath,
+        PROJECT_PATH: this.context.projectPath,
         MODE: this.context.mode,
         CONCURRENCY: String(this.context.concurrency),
         RUN_ID: this.context.id ?? 'none',
@@ -138,12 +138,12 @@ export class ProcessManager {
 
     this.process.stdout?.on('data', (chunk: Buffer) => {
       const msg = chunk.toString().trim()
-      if (msg) log(msg, LoggerLevel.Info, this.context, this.block)
+      if (msg) log(msg, 'info', this.context, this.block)
     })
 
     this.process.stderr?.on('data', (chunk: Buffer) => {
       const msg = chunk.toString().trim()
-      if (msg) log(msg, LoggerLevel.Error, this.context, this.block)
+      if (msg) log(msg, 'error', this.context, this.block)
     })
   }
 
@@ -219,7 +219,7 @@ export class ProcessManager {
       this.process.send({
         type: 'START',
         block: this.block,
-        ctx: {entry: this.context.entry, packagePath: this.context.packagePath, blockCount: this.context.blockCount},
+        ctx: {entry: this.context.entry, packagePath: this.context.projectPath, blockCount: this.context.blockCount},
       })
     })
   }

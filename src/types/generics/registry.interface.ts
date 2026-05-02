@@ -1,4 +1,4 @@
-import {Context} from '../../config'
+import {Context} from '../context.types'
 import {FactoryInput} from '../factory.types'
 
 export interface Registry<T, R, C = Context> {

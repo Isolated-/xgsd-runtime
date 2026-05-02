@@ -1,6 +1,5 @@
 import {SourceData} from '@xgsd/engine'
 import {Orchestrator} from '../types/generics/orchestrator.interface'
-import {Block, Context} from '../config'
 import {importUserModule} from '../extension/util'
 import {deepmerge2} from '../util/object.util'
 import {executeBlocks, ExecutionMode} from '../process/orchestration.process'
@@ -8,10 +7,66 @@ import {Executor} from '../types/generics/executor.interface'
 import {FatalError} from '../error'
 import {BlockEvent, ProjectEvent} from '../types/events.types'
 import {RunState} from '../types/state.types'
+import {Block, Context} from '../types/context.types'
+import {normaliseContext} from '../builders/context.builder'
+
+type TemplateExpose = {
+  ctx: string[]
+  block: string[]
+}
+
+function createTemplateContext(exposes: TemplateExpose) {
+  return (ctx: any, block: any) => {
+    const templateCtx: {
+      ctx: Record<string, unknown>
+      block: Record<string, unknown>
+    } = {
+      ctx: {},
+      block: {},
+    }
+
+    const safeAssign = (value: any) => {
+      if (value && typeof value === 'object') {
+        return structuredClone(value)
+      }
+      return value
+    }
+
+    for (const key of exposes.ctx) {
+      if (key in ctx) {
+        templateCtx.ctx[key] = safeAssign(ctx[key])
+      }
+    }
+
+    for (const key of exposes.block) {
+      if (key in block) {
+        templateCtx.block[key] = safeAssign(block[key])
+      }
+    }
+
+    return templateCtx
+  }
+}
 
 const TEMPLATE_RE = /\{\{([^}]+)\}\}/g
+const FULL_TEMPLATE_RE = /^\s*\{\{\s*(.*?)\s*\}\}\s*$/
 
 export function interpolate(template: string, ctx: any) {
+  // FULL template: "{{ctx}}"
+  const fullMatch = template.match(FULL_TEMPLATE_RE)
+
+  if (fullMatch) {
+    const expr = fullMatch[1]
+
+    const value = expr
+      .trim()
+      .split('.')
+      .reduce((acc: any, key: any) => acc?.[key], ctx)
+
+    return value ?? null
+  }
+
+  // PARTIAL template: "Hello {{name}}"
   return template.replace(TEMPLATE_RE, (_, expr) => {
     const value = expr
       .trim()
@@ -51,17 +106,13 @@ export class DefaultOrchestrator implements Orchestrator {
     private executor: Executor,
   ) {}
 
-  async orchestrate(data: SourceData, blocks: Block[]): Promise<Block[]> {
+  async orchestrate(data: SourceData, blocks: Block[]): Promise<Context> {
     const ctx = this.ctx
     const {config} = ctx
 
     const userModule = await importUserModule(ctx)
 
-    let concurrency = config.project?.concurrency as number
-    if (ctx.mode === 'chain' || ctx.mode === 'fanout') {
-      concurrency = 1
-    }
-
+    const concurrency = config.mode === 'chain' ? 1 : config.concurrency
     let input = deepmerge2({}, data) as SourceData
     const results = await executeBlocks<SourceData>(
       input,
@@ -79,9 +130,13 @@ export class DefaultOrchestrator implements Orchestrator {
           ...block.options,
         }
 
-        // TODO: tighten this
-        block.input = resolveBlockTemplateFromObject(block.input, {ctx, block})
-        block.env = resolveBlockTemplateFromObject(block.env, {ctx, block})
+        const templateCtx = createTemplateContext({
+          ctx: ['id', 'name', 'hash', 'projectPath', 'entry', 'start', 'data', 'mode', 'concurrency'],
+          block: ['idx', 'run', 'name', 'input'],
+        })(ctx, block)
+
+        block.input = resolveBlockTemplateFromObject(block.input, templateCtx)
+        block.env = resolveBlockTemplateFromObject(block.env, templateCtx)
 
         const result = await this.executor.run(block, ctx)
 
@@ -97,6 +152,12 @@ export class DefaultOrchestrator implements Orchestrator {
       },
     )
 
-    return results
+    return normaliseContext({
+      ...ctx,
+      id: ctx.id!,
+      state: RunState.Completed,
+      end: new Date().toISOString(),
+      blocks: results,
+    }) as any
   }
 }

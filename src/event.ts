@@ -10,6 +10,7 @@ export type EventBusAdapter = {
   on: (event: string, handler: (...args: any[]) => void) => void
   once: (event: string, handler: (...args: any[]) => void) => void
   off: (event: string, handler: (...args: any[]) => void) => void
+  removeAllListeners: () => void
   emit: (event: string, payload: any) => any
 }
 
