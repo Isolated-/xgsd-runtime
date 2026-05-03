@@ -1,6 +1,6 @@
 import {RetryAttempt} from '@xgsd/engine'
 import {ExtensionType} from '../extension/util'
-import {Context} from 'joi'
+import {Context} from './context.types'
 import {BlockContext, Block} from './context.types'
 
 export enum ProjectEvent {
