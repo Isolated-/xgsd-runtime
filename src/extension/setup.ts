@@ -46,7 +46,7 @@ export class SetupContainer {
     orchestrator: Orchestrator
     executor: Executor
   }> {
-    this.pluginRegistry.use(UserHooksPlugin, true)
+    //this.pluginRegistry.use(UserHooksPlugin, true)
 
     const plugins: Hooks[] = this.pluginRegistry.build(context)
     //const loggers: Logger[] = this.loggerRegistry.build(context)
