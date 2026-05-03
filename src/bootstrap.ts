@@ -8,7 +8,7 @@ import {RunState} from './types/state.types'
 import {ProjectConfig} from './types/config.types'
 import EventEmitter2 from 'eventemitter2'
 import {createContext} from './sdk'
-import {Context} from './types/context.types'
+import {Activation, Context} from './types/context.types'
 import {RuntimePreset} from './types/runtime-preset.types'
 
 export const dispatchToManagers = async (opts: {
@@ -24,7 +24,7 @@ export const dispatchToManagers = async (opts: {
 }
 
 export const bootstrap = async <T extends SourceData>(opts: {
-  activation?: 'manual' | 'http'
+  activation?: Activation
   projectPath: string
   config: ProjectConfig
   data?: T
@@ -33,7 +33,7 @@ export const bootstrap = async <T extends SourceData>(opts: {
   summary?: any
   preset: RuntimePreset
 }) => {
-  const activation = opts.activation ?? 'manual'
+  const activation = opts.activation ?? 'cli'
   const start = performance.now()
 
   const {config, projectPath, preset} = opts

@@ -4,11 +4,13 @@ export type Options = {
   backoff?: 'linear' | 'exponential' | 'squaring'
 }
 
-export type UsageAcceptTypes = 'execution' | 'minimal'
+export type MetricsAcceptType = 'basic'
 
-export type Usage = {
+export type Metrics = {
   enabled?: boolean
-  accept?: UsageAcceptTypes[]
+  url?: string
+  urls?: string[]
+  accept?: MetricsAcceptType[]
 }
 
 export type BlockConfig = {
@@ -43,7 +45,7 @@ export type ProjectConfig = {
   blocks?: BlockConfig[]
 
   // misc
-  usage?: Usage
+  metrics?: Metrics
 
   // keep this flexible - let apps validate
   [key: string]: unknown

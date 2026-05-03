@@ -2,7 +2,7 @@ import {SourceData} from '@xgsd/engine'
 import {getPackageVersion} from '../config'
 import {EventBus} from '../event'
 import {ProjectConfig} from '../types/config.types'
-import {Context, ContextOpts} from '../types/context.types'
+import {Activation, Context, ContextOpts} from '../types/context.types'
 import {createBlockContext} from './block-context.builder'
 import {createHash} from 'crypto'
 
@@ -102,7 +102,7 @@ export class ContextFinalStage<T extends Record<string, unknown>> {
     return this
   }
 
-  activation(activation: 'manual' | 'http'): this {
+  activation(activation: Activation): this {
     this.ctx.activation = activation
     return this
   }

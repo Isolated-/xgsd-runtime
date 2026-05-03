@@ -8,6 +8,7 @@ import {join} from 'path'
 import {ContextSetupStage} from './builders/context.builder'
 import {RuntimePresetFunction, RuntimePreset} from './types/runtime-preset.types'
 import {v4} from 'uuid'
+import {Activation} from './types/context.types'
 
 export type RetryOpts = {
   retries?: number
@@ -16,7 +17,7 @@ export type RetryOpts = {
 }
 export const createContext = <T = unknown>(opts: {
   path: string
-  activation: 'manual' | 'http'
+  activation: Activation
   config: ProjectConfig
   bus: EventBus<EventBusAdapter>
   data: T

@@ -120,8 +120,6 @@ test('successfully runs a real project in chained mode (no process isolation)', 
     config,
   })
 
-  console.log(result.blocks.map((b) => b.output))
-
   const finalEvent = (await finalEventPromise) as any
 
   assertCompletedChainContext(finalEvent)

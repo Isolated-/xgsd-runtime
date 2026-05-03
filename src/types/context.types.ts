@@ -1,6 +1,6 @@
 import {SourceData} from '@xgsd/engine'
 import {EventBus} from '../event'
-import {ProjectConfig} from './config.types'
+import {Metrics, ProjectConfig} from './config.types'
 import {RunState} from './state.types'
 import {Runnable} from '../process/orchestration.process'
 
@@ -10,6 +10,8 @@ export type ContextOpts = {
   backoff?: 'exponential' | 'linear' | 'squaring'
 }
 
+export type Activation = 'cli' | 'http'
+
 export type Context<T extends SourceData = SourceData> = {
   id: string
   hash: string
@@ -18,7 +20,7 @@ export type Context<T extends SourceData = SourceData> = {
   entry: string
   projectPath: string
   mode: string
-  activation: 'manual' | 'http'
+  activation: Activation
   concurrency: number
   //options: ContextOpts
   //env: Record<string, any>
@@ -32,6 +34,7 @@ export type Context<T extends SourceData = SourceData> = {
   bus: EventBus<any>
   environment: Record<string, any>
   config: ProjectConfig
+  metrics?: Metrics
 }
 
 export type BlockContext<T extends SourceData = SourceData> = {
