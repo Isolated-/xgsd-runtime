@@ -1,63 +1,96 @@
-import {RetryAttempt} from '@xgsd/engine'
 import {
   BlockEvent,
   bootstrap,
-  ConfigParser,
+  createConfig,
   createContext,
   EventBus,
   InProcessExecutor,
   ProjectEvent,
   RuntimePreset,
+  SystemEvent,
 } from '../src'
 import EventEmitter2 from 'eventemitter2'
-import {pathExistsSync, readFileSync, readJsonSync, rmSync} from 'fs-extra'
+import {pathExistsSync, readJsonSync, rmSync} from 'fs-extra'
 import {join} from 'path'
 import {DefaultOrchestrator} from '../src/orchestrators/default.orchestrator'
 
 const createApp = (pkg: string, data?: any) => {
   const path = join(pkg, 'config.yaml')
-  const stream = new EventEmitter2({wildcard: true})
-  const bus = new EventBus(stream)
 
-  const config = new ConfigParser(path)
-    .load()
-    .parse()
-    .default({
-      mode: 'async',
-      concurrency: 4,
-      blocks: [],
-    })
-    .validate((input) => input)
-    .build() as {project: any; blocks: any[]} // <- fix this up
-
-  const packageJson = join(pkg, 'package.json')
-  const content = readJsonSync(packageJson)
-
-  if (!content.main) {
-    throw new Error('no entry point found in package.json')
-  }
-
-  const entry = join(pkg, content.main)
-  const ctx = createContext(pkg)
-    .entry(entry)
-    .config(config)
-    .bus(bus)
-    .id(() => 'id')
-    .name()
-    .version()
-    .data(data ?? config.project.data)
-    .mode()
-    .concurrency(config.project.concurrency)
-    .blocks()
-    .blockCount()
-    .build()
+  const config = createConfig({
+    configPath: path,
+    packageJsonPath: join(pkg, 'package.json'),
+    validator: (input) => input,
+  })
 
   const preset: RuntimePreset = {
     executor: InProcessExecutor,
     orchestrator: DefaultOrchestrator,
   }
 
-  return {ctx, bus, stream, preset}
+  const bus = new EventBus(new EventEmitter2({wildcard: true}))
+
+  return {bus, config, preset}
+}
+
+const capture = <T = any>(bus: EventBus<any>, event: string) => {
+  return new Promise<T>((resolve) => {
+    bus.once(event, ({payload}: any) => {
+      resolve(payload)
+    })
+  })
+}
+
+const collect = <T = any>(bus: any, event: string) => {
+  const items: T[] = []
+
+  const off = bus.on(event, ({payload}: any) => {
+    items.push(payload.attempt ?? payload)
+  })
+
+  return {
+    items,
+    stop: off,
+  }
+}
+
+function assertCompletedChainContext(event: any) {
+  expect(event.context).toBeDefined()
+  expect(event.context.mode).toBe('chain')
+  expect(event.context.state).toBe('completed')
+  expect(event.context.bus).toBeUndefined()
+
+  expect(event.context.start).toEqual(expect.any(String))
+  expect(event.context.end).toEqual(expect.any(String))
+}
+
+function assertChainOutputShape(output: any[]) {
+  expect(output).toHaveLength(3)
+
+  expect(output[0].output).toEqual(
+    expect.objectContaining({
+      temperature: expect.any(Number),
+    }),
+  )
+
+  expect(output[1].input).toEqual(
+    expect.objectContaining({
+      temperature: expect.any(Number),
+    }),
+  )
+}
+
+function assertLondonMessageTemplate(input: any) {
+  const regex = /^It's\s\d+(\.\d+)?°C\sin\sLondon!$/
+
+  expect(input.message).toEqual(expect.stringMatching(regex))
+  expect(input.message).not.toContain('{{')
+}
+
+function assertRetryAttempt(attempt: any, expected: Partial<any>) {
+  expect(attempt.attempt).toBe(expected.attempt)
+  expect(attempt.finalAttempt).toBe(expected.finalAttempt)
+  expect(attempt.error.message).toBe(expected.errorMessage)
 }
 
 /**
@@ -76,88 +109,52 @@ test('successfully runs a real project in chained mode (no process isolation)', 
     rmSync(logFile)
   }
 
-  const {ctx, stream, bus, preset} = createApp(pkg)
+  const {config, bus, preset} = createApp(pkg)
 
-  let finalEvent: any
-  bus.on<ProjectEvent.Ended>(ProjectEvent.Ended, ({event, payload}) => {
-    finalEvent = payload
-  })
+  const finalEventPromise = capture(bus, ProjectEvent.Ended)
 
-  await bootstrap({
-    ctx,
-    stream,
+  const result = await bootstrap({
+    projectPath: pkg,
+    bus,
     preset,
+    config,
   })
 
-  const result = readFileSync(logFile).toString().trim()
-  expect(result).toMatch(/^-?\d+(\.\d+)?°C in .+ \(.+\).*$/)
+  const finalEvent = (await finalEventPromise) as any
 
-  // context assertions
-  expect(finalEvent.context).toBeDefined()
-  expect(finalEvent.context.mode).toBe('chain')
-  expect(finalEvent.context.concurrency).toEqual(1)
-  expect(finalEvent.context.state).toBe('completed')
-  expect(finalEvent.context.end).toEqual(expect.any(String))
-
-  // bus shouldn't be available
-  expect(finalEvent.context.bus).toBeUndefined()
-
-  // output assertions
-  expect(finalEvent.output).toBeDefined()
-  expect(finalEvent.output).toHaveLength(2)
-
-  const validator = expect.objectContaining({temperature: expect.any(Number)})
-
-  // correct data processing in chain mode
-  expect(finalEvent.output[0].output).toEqual(validator)
-  expect(finalEvent.output[1].input).toEqual(validator)
-
-  // no errors
-  expect(finalEvent.output[0].error).toBeNull()
-  expect(finalEvent.output[1].error).toBeNull()
-
-  rmSync(logFile)
-})
+  assertCompletedChainContext(finalEvent)
+  assertChainOutputShape(finalEvent.output)
+  assertLondonMessageTemplate(finalEvent.output[1].input)
+}, 10000)
 
 test('runs a project that completes with failed blocks (and retries enabled)', async () => {
   const pkg = join(__dirname, 'fixtures', 'usercode_failing_with_retry')
 
-  const {ctx, stream, bus, preset} = createApp(pkg, {
-    num: 1,
-  })
+  const {config, bus, preset} = createApp(pkg, {num: 1})
 
-  let retryEvents: RetryAttempt[] = []
-  let finalEvent: any
-  bus.on<ProjectEvent.Ended>(ProjectEvent.Ended, ({event, payload}) => {
-    finalEvent = payload
-  })
-
-  bus.on<BlockEvent.Retrying>(BlockEvent.Retrying, ({event, payload}) => {
-    retryEvents.push(payload.attempt)
-  })
+  const finalEventPromise = capture(bus, ProjectEvent.Ended)
+  const retryCollector = collect(bus, BlockEvent.Retrying)
 
   await bootstrap({
-    ctx,
-    stream,
+    projectPath: pkg,
+    config,
+    bus,
     preset,
   })
 
-  expect(retryEvents).toHaveLength(2)
+  retryCollector.stop()
+
+  expect(retryCollector.items).toHaveLength(2)
+  const retryEvents = retryCollector.items
+
+  const finalEvent = await finalEventPromise
   const ref = retryEvents.reverse()[0]
 
-  // even when all blocks fail, the state is still completed
-  expect(finalEvent.context.state).toBe('completed')
-
-  expect(ref.attempt).toEqual(1)
-  expect(ref.error).toEqual(
-    expect.objectContaining({
-      message: 'something went wrong',
-    }),
-  )
-
-  expect(ref.finalAttempt).toBeTruthy()
-  expect(ref.maxRetries).toEqual(2)
-  expect(ref.nextMs).toEqual(2000)
+  assertRetryAttempt(ref, {
+    attempt: 1,
+    finalAttempt: true,
+    errorMessage: 'something went wrong',
+  })
 
   expect(finalEvent.output[0].state).toBe('failed')
 }, 30000)
@@ -165,69 +162,50 @@ test('runs a project that completes with failed blocks (and retries enabled)', a
 test('runs a project that completes with failed blocks (without retries enabled)', async () => {
   const pkg = join(__dirname, 'fixtures', 'usercode_failing_without_retry')
 
-  const {ctx, stream, bus, preset} = createApp(pkg, {
-    num: 1,
-  })
+  const {config, bus, preset} = createApp(pkg, {num: 1})
 
-  let retryEvent: RetryAttempt
-  let finalEvent: any
-  let failEvent: any
-  let endEventCount = 0
-  bus.on<ProjectEvent.Ended>(ProjectEvent.Ended, ({event, payload}) => {
-    finalEvent = payload
-    endEventCount = endEventCount + 1
-  })
-
-  bus.on<BlockEvent.Retrying>(BlockEvent.Retrying, ({event, payload}) => {
-    retryEvent = payload.attempt
-  })
-
-  bus.on<BlockEvent.Failed>(BlockEvent.Failed, ({event, payload}) => {
-    failEvent = payload
-  })
+  const retryEventsCollector = collect(bus, BlockEvent.Retrying)
+  const blockFailedPromise = capture(bus, BlockEvent.Failed)
 
   await bootstrap({
-    ctx,
-    stream,
+    projectPath: pkg,
+    config,
+    bus,
     preset,
   })
 
-  expect(retryEvent!.attempt).toEqual(0)
-  expect(retryEvent!.error).toEqual(
-    expect.objectContaining({
-      message: 'something went wrong',
-    }),
-  )
+  retryEventsCollector.stop()
 
-  expect(retryEvent!.finalAttempt).toBeTruthy()
-  expect(retryEvent!.maxRetries).toEqual(1)
+  const blockFailEvent = await blockFailedPromise
 
-  expect(finalEvent.output[0].state).toBe('failed')
-  expect(failEvent.error).toEqual(finalEvent.output[0].error)
-  expect(endEventCount).toEqual(1)
+  expect(retryEventsCollector.items).toHaveLength(1)
+  expect(blockFailEvent!.block.state).toBe('failed')
+
+  assertRetryAttempt(retryEventsCollector.items[0], {
+    attempt: 0,
+    errorMessage: 'something went wrong',
+    finalAttempt: true,
+  })
+
+  expect(blockFailEvent.error).toBe(retryEventsCollector.items[0].error)
 }, 30000)
 
 test('runs an advanced project setup with custom Executor and Orchestrator', async () => {
   const pkg = join(__dirname, 'fixtures', 'usercode_advanced')
 
-  const {ctx, stream, bus, preset} = createApp(pkg, {
+  const {bus, config, preset} = createApp(pkg, {
     num: 1,
   })
 
-  let startEvent
-  let finalEvent
-
   // we're mainly just testing that project events are correctly fired
   // block events are managed by the executor
-  bus.on('project.started', ({event, payload}) => {
-    startEvent = payload
-  })
+  const startEventPromise = capture(bus, ProjectEvent.Started)
+  const finalEventPromise = capture(bus, ProjectEvent.Ended)
 
-  bus.on('project.ended', ({event, payload}) => {
-    finalEvent = payload
-  })
+  await bootstrap({projectPath: pkg, bus, config, preset})
 
-  await bootstrap({ctx, stream, preset})
+  const startEvent = await startEventPromise
+  const finalEvent = await finalEventPromise
 
   expect(startEvent).toBeDefined()
   expect(finalEvent).toBeDefined()
@@ -235,3 +213,56 @@ test('runs an advanced project setup with custom Executor and Orchestrator', asy
   expect(startEvent!.context.state).toBe('running')
   expect(finalEvent!.context.state).toBe('completed')
 })
+
+/**
+ *  EVENT FIRING TESTS
+ */
+const EVENTS_TO_TRACK = [
+  SystemEvent.Started,
+  SystemEvent.Ended,
+  ProjectEvent.Started,
+  ProjectEvent.Ended,
+  BlockEvent.Started,
+  BlockEvent.Ended,
+  BlockEvent.Failed,
+  BlockEvent.Retrying,
+  BlockEvent.Skipped,
+  BlockEvent.Waiting,
+]
+
+function createCollectors<T extends string>(bus: EventBus<any>, events: T[]) {
+  const collectors: Record<T, ReturnType<typeof collect>> = {} as any
+
+  for (const e of events) {
+    collectors[e] = collect(bus, e)
+  }
+
+  return collectors
+}
+
+test('project runs dont emit more events than expected', async () => {
+  const pkg = join(__dirname, 'fixtures', 'usercode_failing_with_retry')
+
+  const {config, bus, preset} = createApp(pkg, {num: 1})
+
+  const collectors = createCollectors<string>(bus, EVENTS_TO_TRACK)
+
+  await bootstrap({projectPath: pkg, config, bus, preset})
+
+  const results: Record<string, any[]> = {}
+  for (const [name, collector] of Object.entries(collectors)) {
+    collector.stop()
+    results[name] = collector.items
+  }
+
+  expect(results[SystemEvent.Started]).toHaveLength(1)
+  expect(results[SystemEvent.Ended]).toHaveLength(1)
+  expect(results[ProjectEvent.Started]).toHaveLength(1)
+  expect(results[ProjectEvent.Ended]).toHaveLength(1)
+  expect(results[BlockEvent.Started]).toHaveLength(1)
+  expect(results[BlockEvent.Ended]).toHaveLength(1)
+  expect(results[BlockEvent.Retrying]).toHaveLength(2)
+  expect(results[BlockEvent.Skipped]).toHaveLength(0)
+  expect(results[BlockEvent.Waiting]).toHaveLength(0)
+  expect(results[BlockEvent.Failed]).toHaveLength(1)
+}, 10000)

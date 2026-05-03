@@ -1,7 +1,8 @@
-import {Context} from '../config'
+import {Context} from './context.types'
 
 export interface Hooks {
   name?: string
+  events?: string[]
 
   // new event handler
   // generic to avoid need to add more events

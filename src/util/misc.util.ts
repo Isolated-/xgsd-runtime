@@ -16,6 +16,16 @@ export const byteSize = (data: unknown): number => {
   return Buffer.byteLength(JSON.stringify(data ?? ''), 'utf8')
 }
 
+export const sizeOf = (value: any): number => {
+  if (Buffer.isBuffer(value)) return value.length
+  if (typeof value === 'string') return Buffer.byteLength(value)
+  if (Array.isArray(value)) return value.reduce((n, v) => n + sizeOf(v), 0)
+  if (typeof value === 'object' && value !== null) {
+    return Object.values(value).reduce((n: number, v) => n + sizeOf(v), 0) as number
+  }
+  return 0
+}
+
 export function ms(input: string | number): number {
   if (typeof input === 'number') return input
 

@@ -1,4 +1,105 @@
-import {deepmerge2} from '../object.util'
+import {deepmerge2, mergeOn} from '../object.util'
+
+/**
+ *  mergeOn() tests
+ *  @note used to merge block outputs into single object (typically)
+ */
+describe('mergeOn()', () => {
+  test('should create a new object from objects in an array', () => {
+    const items = [
+      {
+        data: {
+          myData: true,
+        },
+      },
+      {
+        data: {
+          anotherProperty: 1,
+        },
+      },
+    ]
+
+    expect(mergeOn('data', items)).toEqual({
+      myData: true,
+      anotherProperty: 1,
+    })
+  })
+
+  test('should override data using last result', () => {
+    const items = [
+      {
+        data: {
+          myData: true,
+        },
+      },
+      {
+        data: {
+          myData: false,
+        },
+      },
+    ]
+
+    expect(mergeOn('data', items)).toEqual({
+      myData: false,
+    })
+  })
+
+  test('objects without "property" dont cause failure', () => {
+    const items = [{data: {myData: true}}, {}]
+    expect(mergeOn('data', items)).toEqual({myData: true})
+  })
+
+  test('nested properties can be merged', () => {
+    const data = {
+      var: {myData: true},
+    }
+
+    const items = [{data}, {data}]
+    expect(mergeOn('data', items)).toEqual({var: {myData: true}})
+  })
+
+  test("nested properties with the same key don't merge", () => {
+    const data = {data: {data: {myData: true}}}
+    const items = [{data}, {data}]
+    expect(mergeOn('data', items)).toEqual({data: {data: {myData: true}}})
+  })
+
+  test('nested properties unwrap recursively level when unwrap = always', () => {
+    const data = {data: {data: {myData: true}}}
+    const items = [{data}, {data}]
+
+    expect(mergeOn('data', items, {unwrap: 'always'})).toEqual({
+      myData: true,
+    })
+  })
+
+  test('nested properties unwrap one level when unwrap = auto and all items match', () => {
+    const data = {data: {myData: true}}
+    const items = [{data}, {data}]
+
+    expect(mergeOn('data', items, {unwrap: 'auto'})).toEqual({
+      data: {myData: true},
+    })
+  })
+
+  test('auto does not unwrap when structure is inconsistent', () => {
+    const items = [{data: {data: {myData: true}}}, {data: {myData: true}}]
+
+    expect(mergeOn('data', items, {unwrap: 'auto'})).toEqual({
+      data: {myData: true},
+      myData: true,
+    })
+  })
+
+  test('nested properties can be accessed and merged', () => {
+    const data = {
+      var: {myData: true},
+    }
+
+    const items = [{data}, {data}]
+    expect(mergeOn('data.var', items)).toEqual({myData: true})
+  })
+})
 
 /**
  *  deepmerge() tests

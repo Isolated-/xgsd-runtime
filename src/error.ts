@@ -6,6 +6,7 @@ export enum FatalErrorCode {
   FatalError = 'CODE_FATAL_ERROR',
   ModuleNotFound = 'CODE_MODULE_NOT_FOUND',
   FunctionNotFound = 'CODE_FUNCTION_NOT_FOUND',
+  EnvVarLoadFail = 'CODE_ENV_VAR_LOAD_FAIL',
 }
 
 export class FatalError extends Error {

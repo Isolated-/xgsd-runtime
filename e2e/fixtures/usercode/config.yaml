@@ -23,3 +23,7 @@ blocks:
   - run: saveTemperature
     input:
       file: e2e/fixtures/usercode/temp.txt
+      message: "It's {{block.input.temperature}}{{block.input.unit}} in London!"
+
+  - run: disabledAction
+    enabled: false

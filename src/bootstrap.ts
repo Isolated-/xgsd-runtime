@@ -1,13 +1,15 @@
-import {attachManagerLifecycleListeners, bindEventBusToLoggerManager} from './extension/lifecycle'
+import {attachManagerLifecycleListeners} from './extension/lifecycle'
 import {createRuntime} from './extension/util'
-import {BlockContext, Context} from './config'
 import {SourceData} from '@xgsd/engine'
-import {EventBus, EventBusAdapter} from './event'
+import {EventBus} from './event'
 import {Manager} from './types/generics/manager.interface'
-import {ExecutorInput, LoggerInput, OrchestratorInput, PluginInput} from './types/factory.types'
-import {ExecutionMode} from './process/orchestration.process'
 import {ProjectEvent, SystemEvent} from './types/events.types'
 import {RunState} from './types/state.types'
+import {ProjectConfig} from './types/config.types'
+import EventEmitter2 from 'eventemitter2'
+import {createContext} from './sdk'
+import {Activation, Context} from './types/context.types'
+import {RuntimePreset} from './types/runtime-preset.types'
 
 export const dispatchToManagers = async (opts: {
   managers: Manager[]
@@ -21,44 +23,48 @@ export const dispatchToManagers = async (opts: {
   }
 }
 
-export type RuntimePreset = {
-  // mode/concurrency aren't currently supported
-  // but should be to represent the parts of config
-  // that the runtime is specifically concerned about
-  mode?: ExecutionMode
-  concurrency?: number
-  loggers?: LoggerInput[]
-  plugins?: PluginInput[]
-  executor?: ExecutorInput
-  orchestrator?: OrchestratorInput
-}
-
-export type RuntimePresetFunction = (opts?: Record<string, unknown>) => RuntimePreset
-
 export const bootstrap = async <T extends SourceData>(opts: {
-  ctx: Context<T>
+  activation?: Activation
+  projectPath: string
+  config: ProjectConfig
+  data?: T
+  ctx?: Context<T>
+  bus?: EventBus<any>
+  summary?: any
   preset: RuntimePreset
-  stream: EventBusAdapter
 }) => {
+  const activation = opts.activation ?? 'cli'
   const start = performance.now()
-  const {preset, stream, ctx} = opts
 
-  const bus = new EventBus(stream)
-  const {pluginManager, loggerManager, orchestrator} = await createRuntime({
+  const {config, projectPath, preset} = opts
+  const bus = opts.bus ?? opts.ctx?.bus ?? new EventBus(new EventEmitter2({wildcard: true}))
+
+  const ctx =
+    opts.ctx ??
+    createContext({
+      path: projectPath,
+      config,
+      bus,
+      data: opts.data ?? config.data ?? null,
+      activation,
+    })
+
+  ctx.start = new Date().toISOString()
+
+  const {pluginManager, orchestrator} = await createRuntime({
     ctx,
     bus,
     preset,
   })
 
-  bindEventBusToLoggerManager(bus, loggerManager)
   attachManagerLifecycleListeners(pluginManager, bus)
 
   // this has to be here otherwise plugins/loggers never get this event
-  await bus.emit(SystemEvent.Started, {})
+  await bus.emit(SystemEvent.Started, {summary: null})
 
   await dispatchToManagers({
     ctx,
-    managers: [loggerManager, pluginManager],
+    managers: [pluginManager],
     type: 'init',
   })
 
@@ -70,21 +76,17 @@ export const bootstrap = async <T extends SourceData>(opts: {
   })
 
   const projectStart = performance.now()
-  const results = await orchestrator.orchestrate(ctx.data, ctx.blocks as any[])
+  const finalCtx = await orchestrator.orchestrate(ctx.data, ctx.blocks as any[])
   const projectEnd = performance.now()
 
   await bus.emit(ProjectEvent.Ended, {
-    context: {
-      ...ctx,
-      state: RunState.Completed,
-      end: new Date().toISOString(),
-    },
-    output: results,
+    context: finalCtx,
+    output: finalCtx.blocks,
   })
 
   await dispatchToManagers({
     ctx,
-    managers: [loggerManager, pluginManager],
+    managers: [pluginManager],
     type: 'exit',
   })
 
@@ -93,7 +95,12 @@ export const bootstrap = async <T extends SourceData>(opts: {
   const duration = ended - start
 
   await bus.emit(SystemEvent.Ended, {
+    summary: null,
     bootstrapDuration: duration,
     projectDuration,
   })
+
+  // instead of results
+  // formalise a report summary
+  return finalCtx
 }

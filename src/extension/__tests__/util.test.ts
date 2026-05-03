@@ -9,11 +9,11 @@ import {
   runInit,
 } from '../util'
 import {Executor} from '../../types/generics/executor.interface'
-import {Block, Context} from '../../config'
 import {join} from 'path'
 import {FatalError} from '../../error'
 import {SystemEvent} from '../../types/events.types'
 import {UserModule} from '../user-module'
+import {Context, Block} from '../../types/context.types'
 
 /**
  *  resolveFactory()

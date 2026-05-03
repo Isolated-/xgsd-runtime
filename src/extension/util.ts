@@ -1,23 +1,23 @@
 import {SetupContainer} from './setup'
 import {EventHandler} from './lifecycle'
 import {PluginRegistry} from './plugins/plugin.registry'
-import {LoggerRegistry} from './loggers/logger.registry'
-import {Block, Context} from '../config'
 import {RunFn, SourceData} from '@xgsd/engine'
 import {Hooks} from '../types/hooks.types'
 import {FatalError, FatalErrorCode} from '../error'
 import {EventBus, EventBusAdapter} from '../event'
 import {SystemEvent} from '../types/events.types'
 import {FactoryInput, Factory, OrchestratorInput, OrchestratorFactory} from '../types/factory.types'
-import {RuntimePreset} from '../bootstrap'
 import {join} from 'path'
 import {UserModule} from './user-module'
 import {Executor} from '../types/generics/executor.interface'
 import {Orchestrator} from '../types/generics/orchestrator.interface'
+import ms from 'ms'
+import {Block, Context} from '../types/context.types'
+import {RuntimePreset} from '../types/runtime-preset.types'
 
 export type UserSetupFn = (mod: UserModule, setup: SetupContainer) => Promise<void>
 export type ContextLike = {
-  packagePath: string
+  projectPath: string
   entry: string
   blockCount: number
 }
@@ -73,10 +73,6 @@ export type Extension = {
 
 export const runInit = async <T extends Extension>(items: T[], ctx: Context, bus?: EventBus<EventBusAdapter>) => {
   for (const item of items) {
-    if (item.init) {
-      await item.init(ctx)
-    }
-
     if (bus) {
       await bus.emit<SystemEvent.ExtensionLoaded>(SystemEvent.ExtensionLoaded, {
         name: item.name ?? 'anonymous',
@@ -84,15 +80,17 @@ export const runInit = async <T extends Extension>(items: T[], ctx: Context, bus
         type: item.type!,
       })
     }
+
+    try {
+      if (item.init && typeof item.init === 'function') {
+        await item.init(ctx)
+      }
+    } catch (error) {}
   }
 }
 
 export const runExit = async <T extends Extension>(items: T[], ctx: Context, bus?: EventBus<EventBusAdapter>) => {
   for (const item of items) {
-    if (item.exit) {
-      await item.exit(ctx)
-    }
-
     if (bus) {
       await bus.emit<SystemEvent.ExtensionUnloaded>(SystemEvent.ExtensionUnloaded, {
         name: item.name ?? 'anonymous',
@@ -100,6 +98,12 @@ export const runExit = async <T extends Extension>(items: T[], ctx: Context, bus
         type: item.type!,
       })
     }
+
+    try {
+      if (item.exit && typeof item.exit === 'function') {
+        await item.exit(ctx)
+      }
+    } catch (error) {}
   }
 }
 
@@ -209,19 +213,16 @@ export const createRuntime = async (opts: {
   userCodeFn?: UserSetupFn
 }) => {
   const pluginRegistry = new PluginRegistry()
-  const loggerRegistry = new LoggerRegistry()
 
   const {ctx, preset} = opts
 
   preset.plugins?.forEach((plugin) => pluginRegistry.use(plugin, true))
-  preset.loggers?.forEach((logger) => loggerRegistry.use(logger, true))
 
   const setup =
     opts.setupContainer ??
     new SetupContainer({
       bus: opts.bus,
       pluginRegistry,
-      loggerRegistry,
     })
 
   // this needs to happen before userCode is called or preset will always win
@@ -247,9 +248,26 @@ export const createRuntime = async (opts: {
 }
 
 export const emit = async <T = unknown>(hooks: Hooks[], event: string, payload: T) => {
+  const promises = []
   for (const hook of hooks) {
     if (!hook.on || typeof hook.on !== 'function') continue
+    if (hook.events && !hook.events.includes(event)) continue
 
-    await hook.on(event, payload)
+    /*try {
+      // TODO: reconsider this
+      // either collect on() and Promise.race
+      // or use runWithConcurrency
+      // reason: slow plugins cause longer executions
+      await hook.on(event, payload)
+    } catch (error) {
+      // TODO: determine error handling strategy
+      // for plugins throwing errors in on()
+    }*/
+
+    promises.push(hook.on(event, payload))
   }
+
+  try {
+    await Promise.all(promises)
+  } catch (error) {}
 }

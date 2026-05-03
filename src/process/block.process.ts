@@ -4,27 +4,13 @@ import {BlockEvent} from '../types/events.types'
 import {retry, WrappedError, RetryAttempt, SourceData, withTimeout} from '@xgsd/engine'
 import {getBackoffStrategy} from '../backoff'
 import {Events} from '../types/events.types'
-import {Block, Context} from '../config'
 import {ContextLike, importUserModuleRunFn} from '../extension/util'
 import {defaultWith, delayFor} from '../util/misc.util'
-
-export const DATA_SIZE_LIMIT_KB = 2048 // 2048 KB
+import {Block, Context} from '../types/context.types'
+import {ResultBuilder} from '../builders/result.builder'
 
 export const log = (message: string, level: string = 'info') => {
   dispatchMessage('log', {log: {level, message, timestamp: new Date().toISOString()}}, true)
-}
-
-export function getStepDelay(stepCount: number): number {
-  if (stepCount <= 0) return 0
-
-  const base = 100 // ms max delay
-  const min = 10 // ms minimum delay floor
-
-  // Scale down with log — more steps = smaller delay
-  const delay = base / Math.log2(stepCount + 1)
-
-  // Clamp so we never go below min
-  return Math.max(min, Math.round(delay))
 }
 
 function dispatchMessage(
@@ -60,7 +46,10 @@ export async function processBlock(opts: {
 }) {
   const {event, attempt, block} = opts
 
+  // this doesn't provide enough resolution
   block.start = new Date().toISOString()
+
+  const start = performance.now()
 
   if (block.enabled === false) {
     // handle skip
@@ -72,11 +61,12 @@ export async function processBlock(opts: {
 
   event?.(BlockEvent.Started, {block})
 
-  if (block.options?.delay && block.options.delay !== '0s' && block.options.delay !== 0) {
+  // TODO: implement waiting/delay
+  /*if (block.options?.delay && block.options.delay !== '0s' && block.options.delay !== 0) {
     //const delayMs = getDurationNumber(block.options.delay as string) || 0
     //event?.(BlockEvent.Waiting, {block, delayMs})
     //await delayFor(delayMs || 0)
-  }
+  }*/
 
   const method = defaultWith('exponential', block.options?.backoff)
   const delayFn = getBackoffStrategy(method as string)
@@ -84,38 +74,39 @@ export async function processBlock(opts: {
 
   block.state = RunState.Running
 
-  // TODO: remove hardcoded defaults
   const retries = options.retries
+
   // by this point timeout = number
   const timeout = options.timeout as number
 
   let errors: WrappedError[] = []
-  const result = await retry(block.input, block.fn!, retries, {
+  const result = (await retry(block.input, block.fn!, retries!, {
     timeoutWrapper: withTimeout(timeout),
     backoff: delayFn,
     onAttempt: async (a) => {
       attempt?.(a)
       block.state = RunState.Retrying
       block.attempt = a.attempt + 1
-      errors.push(a.error) // this can be removed in v0.4+ (streaming to logs is implemented)
+
+      errors.push(a.error)
+
       event?.(BlockEvent.Retrying, {block, attempt: a})
     },
-  })
+  })) as any
 
-  if (errors.length > 0) {
-    block.errors = errors
+  if (result.data !== null && result.data !== undefined && typeof result.data !== 'object') {
+    result.data = {data: result.data}
   }
 
-  block.output = (result.data as SourceData) ?? {}
-  block.error = result.error
-  block.options = {retries, timeout}
-  block.state = result.error ? RunState.Failed : RunState.Completed
-  block.end = new Date().toISOString()
-  block.duration = Date.parse(block.end) - Date.parse(block.start)
+  const end = performance.now()
 
-  event?.(BlockEvent.Ended, {block})
+  const output = new ResultBuilder(block).withResult(result).withErrors(errors).build()
 
-  return block
+  output.duration = end - start
+
+  event?.(BlockEvent.Ended, {block: output})
+
+  return output
 }
 
 export const rejectionHandler = (block: Block) => {
@@ -150,23 +141,18 @@ process.on('message', async (msg: {type: string; block: Block; ctx: ContextLike}
 
   rejectionHandler(block)
 
-  const fn = await importUserModuleRunFn(block, ctx)
-  block.fn = fn
-
-  log(`[${block.run}] function ${block.fn}`, 'debug')
+  // this was cached when moving to @xgsd/runtime
+  // no more multiple calls into usercode
+  block.fn = await importUserModuleRunFn(block, ctx)
 
   const result = await processBlock({
     block,
     event,
   })
 
-  // v0.4.0 - allow some time for messages to be sent before exiting
-  // also prevents issues with very fast steps
-  // placing it here won't affect step timing
-  // v0.5.0 (note) -> ctx.blocks is no longer sent to child process
-  // instead blockCount() can achieve this function
-  const nextStepDelayMs = getStepDelay(ctx.blockCount)
-  await delayFor(nextStepDelayMs)
+  // removed waiting from here
+  // less data is sent between processes
+  // so less need to delay
 
   dispatchMessage('result', {result: {block: result}})
 })

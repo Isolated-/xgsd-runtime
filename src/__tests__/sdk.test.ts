@@ -1,4 +1,3 @@
-import {RuntimePresetFunction} from '../bootstrap'
 import {composePreset, composePresetWithOpts} from '../sdk'
 
 class CoreExecutor {}
@@ -78,7 +77,6 @@ describe('composePreset(withOpts)()', () => {
     })
 
     // order is preserved
-    expect(preset.loggers).toEqual([FirstLogger, SecondLogger])
     expect(preset.plugins).toEqual([FirstPlugin, SecondPlugin])
   })
 

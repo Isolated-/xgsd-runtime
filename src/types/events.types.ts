@@ -1,7 +1,7 @@
 import {RetryAttempt} from '@xgsd/engine'
-import {Context, Block, BlockContext} from '../config'
 import {ExtensionType} from '../extension/util'
-import {LoggerLevel} from './interfaces/logger.interface'
+import {Context} from 'joi'
+import {BlockContext, Block} from './context.types'
 
 export enum ProjectEvent {
   Started = 'project.started',
@@ -52,13 +52,16 @@ export type Events = {
   [BlockEvent.Waiting]: {
     block: Block
   }
-  [SystemEvent.Started]: {}
+  [SystemEvent.Started]: {
+    summary: any
+  }
   [SystemEvent.Ended]: {
+    summary: any
     bootstrapDuration: number
     projectDuration: number
   }
   [SystemEvent.SystemMessage]: {
-    level: LoggerLevel
+    level: string
     message: string
     data?: Record<string, unknown>
   }
