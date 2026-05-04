@@ -37,7 +37,7 @@ export function normaliseModule(mod: any) {
 
 export async function importUserModule<T extends ContextLike = ContextLike>(context: T) {
   try {
-    const mod = await import(`${context.entry}?t=${Date.now()}`)
+    const mod = await import(`${context.entry}`)
 
     return normaliseModule(mod)
   } catch (e: any) {
