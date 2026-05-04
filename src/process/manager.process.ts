@@ -1,12 +1,12 @@
 import {fork} from 'child_process'
-import {RunState} from '../types/state.types'
-import {FatalError, FatalErrorCode} from '../error'
-import {BlockEvent, SystemEvent} from '../types/events.types'
-import {pathExistsSync, readFileSync, readJsonSync} from 'fs-extra'
+import {RunState} from '../types/state.types.js'
+import {FatalError, FatalErrorCode} from '../error.js'
+import {BlockEvent, SystemEvent} from '../types/events.types.js'
+import * as fs from 'fs-extra'
 import {parse} from 'dotenv'
 import * as path from 'path'
-import {Block, Context} from '../types/context.types'
-import {getPackageVersion} from '../config'
+import {Block, Context} from '../types/context.types.js'
+import {getPackageVersion} from '../config.js'
 
 export const event = (name: string, payload: object) => {
   process.send!({type: 'PARENT:EVENT', event: name, payload})
@@ -28,14 +28,14 @@ const log = async (message: string, level: string, context?: Context, block?: Bl
 function resolveEnvVarsFromPath(inputPath: string, ref: string): string {
   const resolvedPath = path.isAbsolute(inputPath) ? inputPath : path.resolve(process.cwd(), inputPath)
 
-  if (!resolvedPath || !pathExistsSync(resolvedPath)) {
+  if (!resolvedPath || !fs.pathExistsSync(resolvedPath)) {
     throw new FatalError(`Cannot load ${ref} from ${inputPath} - doesn't exist`, FatalErrorCode.EnvVarLoadFail)
   }
 
   let json: any = null
 
   try {
-    json = readJsonSync(resolvedPath)
+    json = fs.readJsonSync(resolvedPath)
   } catch {}
 
   if (json !== null) {
@@ -46,7 +46,7 @@ function resolveEnvVarsFromPath(inputPath: string, ref: string): string {
     return String(json[ref])
   }
 
-  const content = readFileSync(resolvedPath, 'utf-8')
+  const content = fs.readFileSync(resolvedPath, 'utf-8')
   const parsed = parse(content)
 
   if (!(ref in parsed)) {

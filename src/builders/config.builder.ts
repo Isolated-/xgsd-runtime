@@ -1,4 +1,4 @@
-import {pathExistsSync, readFileSync, readJsonSync} from 'fs-extra'
+import * as fs from 'fs-extra'
 import {ProjectConfig} from '../types/config.types'
 import * as yaml from 'yaml'
 
@@ -12,11 +12,11 @@ export class ConfigBuilderLoadStage {
 
     const filePath = this.input
 
-    if (!pathExistsSync(filePath)) {
+    if (!fs.pathExistsSync(filePath)) {
       throw new Error(`Config file not found: ${filePath}`)
     }
 
-    const content = readFileSync(filePath, 'utf-8')
+    const content = fs.readFileSync(filePath, 'utf-8')
     return new ConfigBuilderParseStage(content)
   }
 }
@@ -67,11 +67,11 @@ export class ConfigBuilderBuildStage {
   constructor(private _config: Partial<ProjectConfig>) {}
 
   defaultFromPackageJson(packagePath: string): this {
-    if (!pathExistsSync(packagePath)) {
+    if (!fs.pathExistsSync(packagePath)) {
       throw new Error('package path does not exist')
     }
 
-    const json = readJsonSync(packagePath)
+    const json = fs.readJsonSync(packagePath)
 
     this._config.name = this._config.name ?? json.name
     this._config.description = this._config.description ?? json.description

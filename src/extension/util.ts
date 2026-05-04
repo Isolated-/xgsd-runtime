@@ -23,22 +23,28 @@ export type ContextLike = {
 }
 
 // super simple map cache
+// TODO: this needs to be improved
+// API uses outdated usercode
 const moduleCache = new Map<string, UserModule>()
 
-export async function importUserModule<T extends ContextLike = ContextLike>(context: T) {
-  if (moduleCache.has(context.entry)) {
-    return moduleCache.get(context.entry)
+export function normaliseModule(mod: any) {
+  if (mod?.default && typeof mod.default === 'object') {
+    return mod.default
   }
 
-  try {
-    const mod = await import(context.entry)
-    moduleCache.set(context.entry, mod)
+  return mod
+}
 
-    return mod
+export async function importUserModule<T extends ContextLike = ContextLike>(context: T) {
+  try {
+    const mod = await import(`${context.entry}?t=${Date.now()}`)
+
+    return normaliseModule(mod)
   } catch (e: any) {
     // clean this up
+
     throw new FatalError(
-      `${context.entry} couldn't be loaded. This could mean it wasn't found, or there's an error preventing its load. Check logs for more information. (${e.message})`,
+      `${context.entry} could not be loaded.\r\nThis means it either wasn't found, or an error is preventing its load.\r\nDetail: ${e.message}`,
       FatalErrorCode.ModuleNotFound,
     )
   }
