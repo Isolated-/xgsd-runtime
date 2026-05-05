@@ -42,7 +42,7 @@
     "typescript": "^5.x"
   },
   "dependencies": {
-    "@xgsd/engine": "0.1.2",
+    "@xgsd/engine": "1.0.0-stable",
     "dotenv": "^17.4.2",
     "fs-extra": "^11.3.4",
     "ms": "^2.1.3",

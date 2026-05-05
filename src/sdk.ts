@@ -1,5 +1,13 @@
 // this will eventually become its own library (@xgsd/sdk)
-import {retry as coreRetry, execute as coreExecute, RunFn, SourceData, RetryAttempt, withTimeout} from '@xgsd/engine'
+import {
+  retry as coreRetry,
+  execute as coreExecute,
+  RunFn,
+  SourceData,
+  RetryAttempt,
+  withTimeout,
+  WrappedError,
+} from '@xgsd/engine'
 import {getBackoffStrategy} from './backoff'
 import {ConfigBuilderLoadStage} from './builders/config.builder'
 import {EventBus, EventBusAdapter} from './event'
@@ -72,14 +80,17 @@ export const createConfig = (opts: {
  *  @param attempt
  *  @returns
  */
-export async function retry<T extends SourceData = SourceData>(
-  run: RunFn<T>,
+export async function retry<T extends SourceData = SourceData, R extends SourceData = SourceData>(
+  run: RunFn<T, R>,
   data?: T,
   opts?: RetryOpts,
   attempt?: (a: RetryAttempt) => void,
 ) {
-  return coreRetry<T>(data as T, run, opts?.retries || 1, {
-    timeoutWrapper: withTimeout(opts?.timeout ?? 1000),
+  const timeout = opts?.timeout ?? 1000
+  const retries = opts?.retries ?? 3
+
+  return coreRetry(data as T, run, retries, {
+    timeoutWrapper: withTimeout(timeout),
     backoff: getBackoffStrategy(opts?.backoff || 'exponential'),
     onAttempt: attempt,
   })
@@ -93,7 +104,7 @@ export type ExecuteOpts = {
 export async function execute<T extends SourceData = SourceData>(run: RunFn<T>, data?: any, opts?: ExecuteOpts) {
   let wrapper = undefined
   if (opts?.timeout) {
-    wrapper = withTimeout(opts.timeout)
+    wrapper = withTimeout<T>(opts.timeout)
   }
 
   return coreExecute(data, run, wrapper)
