@@ -11,15 +11,21 @@ export class ProcessExecutor<T extends SourceData = SourceData> implements Execu
   }
 
   private async runIsolated(block: Block, context: Context) {
-    let timeoutMs: number | undefined
+    let timeoutMs: number | undefined = 1000
     const opts = block.options
 
     if (opts?.timeout) {
       timeoutMs = typeof opts.timeout === 'string' ? ms(opts.timeout as ms.StringValue) : opts.timeout
     }
 
+    // blocks that timeout but can still recover
+    // shouldn't exit on first try
+    // this should fix that
+    const retries = opts?.retries ?? 0
+    const timeout = timeoutMs * retries + 100
+
     const path = require.resolve('@xgsd/runtime/process/block.process')
-    const manager = new ProcessManager(block, context, path, timeoutMs)
+    const manager = new ProcessManager(block, context, path, timeout)
 
     manager.fork()
 

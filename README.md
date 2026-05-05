@@ -1,4 +1,4 @@
-# @xgsd/engine
+# @xgsd/runtime
 
 [![oclif](https://img.shields.io/badge/cli-oclif-brightgreen.svg)](https://oclif.io)  
 [![Version](https://img.shields.io/npm/v/@xgsd/runtime.svg)](https://npmjs.org/package/@xgsd/runtime)  
@@ -6,4 +6,4 @@
 
 ## Overview
 
-TBD (+ docs coming)
+Powers everything to do with `@xgsd/cli`.
