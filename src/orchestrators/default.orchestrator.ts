@@ -152,10 +152,19 @@ export class DefaultOrchestrator implements Orchestrator {
       },
     )
 
+    const failures = results.filter((b) => b.state === RunState.Failed)
+    let state = RunState.Completed
+
+    if (failures.length === results.length) {
+      state = RunState.Failed
+    }
+
+    // TODO: add user-defined thresholds for what "failure" is
+
     return normaliseContext({
       ...ctx,
       id: ctx.id!,
-      state: RunState.Completed,
+      state,
       end: new Date().toISOString(),
       blocks: results,
     }) as any
