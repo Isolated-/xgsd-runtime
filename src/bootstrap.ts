@@ -23,18 +23,21 @@ export const dispatchToManagers = async (opts: {
   }
 }
 
-export const bootstrap = async <T extends SourceData>(opts: {
-  activation?: Activation
+type BootstrapOpts<T extends SourceData> = {
   projectPath: string
   config: ProjectConfig
+  activation?: Activation
   data?: T
   ctx?: Context<T>
   bus?: EventBus<any>
-  summary?: any
   preset: RuntimePreset
-}) => {
+  spanStart?: number
+  [key: string]: unknown
+}
+
+export const bootstrap = async <T extends SourceData>(opts: BootstrapOpts<T>) => {
   const activation = opts.activation ?? 'cli'
-  const start = performance.now()
+  const start = opts.spanStart ?? performance.now()
 
   const {config, projectPath, preset} = opts
   const bus = opts.bus ?? opts.ctx?.bus ?? new EventBus(new EventEmitter2({wildcard: true}))
