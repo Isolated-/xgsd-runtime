@@ -13,6 +13,7 @@ export function normaliseContext(ctx: Context): Partial<Context> {
     version: ctx.version,
     hash: ctx.hash,
     entry: ctx.entry,
+    config: ctx.config,
     activation: ctx.activation,
     projectPath: ctx.projectPath,
     environment: ctx.environment,
