@@ -10,3 +10,6 @@ export * from './event.js'
 export * from './types/runtime-preset.types.js'
 export * from './types/context.types.js'
 export * from './types/config.types.js'
+
+// export generics
+export * from './types/generics/index.js'
