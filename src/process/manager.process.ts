@@ -148,12 +148,54 @@ export class ProcessManager {
   }
 
   run(prefix: string = 'CHILD'): Promise<{block: any; fatal: boolean; errors: any[]}> {
+    // v0.7 note
+    // before child processes were ungracefully killed
+    // instead of parent owning process lifecycle
+    // child process owns it until it becomes unhealthy
+
     return new Promise((resolve) => {
       let timer: NodeJS.Timeout | null = null
+      let settled = false
+
+      const cleanup = () => {
+        if (timer) {
+          clearTimeout(timer)
+          timer = null
+        }
+
+        this.process.removeAllListeners('message')
+      }
+
+      const finish = (result: {block: any; fatal: boolean; errors: any[]}) => {
+        if (settled) return
+        settled = true
+
+        cleanup()
+
+        // graceful IPC shutdown
+        if (this.process.connected) {
+          this.process.disconnect()
+        }
+
+        resolve(result)
+      }
+
+      const resetTimer = (ms: number) => {
+        if (!this.timeoutMs) return
+
+        if (timer) {
+          clearTimeout(timer)
+        }
+
+        timer = setTimeout(timerHandler, ms)
+      }
 
       const timerHandler = () => {
+        // ONLY hard-kill on timeout
         this.process.kill()
+
         const error = new FatalError('hard timeout limit reached', FatalErrorCode.HardTimeout)
+
         const updated = {
           ...this.block,
           start: new Date(this.startedAt).toISOString(),
@@ -164,62 +206,77 @@ export class ProcessManager {
           errors: [error],
         }
 
-        resolve({block: updated, fatal: true, errors: []})
+        finish({
+          block: updated,
+          fatal: true,
+          errors: [error],
+        })
       }
 
       if (this.timeoutMs) {
-        timer = setTimeout(timerHandler, this.timeoutMs)
+        resetTimer(this.timeoutMs)
       }
 
       this.process.on('message', async (msg: any) => {
         switch (msg.type) {
-          case `${prefix}:EVENT`:
+          case `${prefix}:EVENT`: {
             if (msg.event === BlockEvent.Started || msg.event === BlockEvent.Ended) {
-              if (timer) clearTimeout(timer)
-              timer = setTimeout(timerHandler, this.timeoutMs!) // <- don't add an additional second here
+              resetTimer(this.timeoutMs!)
             }
 
             if (msg.event === BlockEvent.Retrying) {
-              if (timer) clearTimeout(timer)
-              timer = setTimeout(timerHandler, this.timeoutMs! + msg.payload.attempt.nextMs + 500)
+              resetTimer(this.timeoutMs! + msg.payload.attempt.nextMs + 500)
             }
 
-            // v0.5 or later
             await this.context.bus.emit(msg.event, {
               event: msg.event,
               payload: msg.payload,
             })
-            break
 
-          case `${prefix}:LOG`:
-            if (timer) clearTimeout(timer)
-            timer = setTimeout(timerHandler, this.timeoutMs! + 1000)
+            break
+          }
+
+          case `${prefix}:LOG`: {
+            resetTimer(this.timeoutMs! + 1000)
+
             log(msg.log.message, msg.log.level, this.context, this.block)
-            break
 
-          case `${prefix}:RESULT`:
-            this.process.kill()
-            if (timer) clearTimeout(timer)
-            resolve({block: msg.result.block, fatal: false, errors: msg.result.block.errors})
             break
+          }
 
-          case `${prefix}:ERROR`:
-            this.process.kill()
-            if (timer) clearTimeout(timer)
-            resolve({
-              block: {...this.block, state: RunState.Failed},
+          case `${prefix}:RESULT`: {
+            finish({
+              block: msg.result.block,
+              fatal: false,
+              errors: msg.result.block.errors,
+            })
+
+            break
+          }
+
+          case `${prefix}:ERROR`: {
+            finish({
+              block: {
+                ...this.block,
+                state: RunState.Failed,
+              },
               fatal: true,
               errors: [msg.error],
             })
+
             break
+          }
         }
       })
 
-      // send start command
       this.process.send({
         type: 'START',
         block: this.block,
-        ctx: {entry: this.context.entry, packagePath: this.context.projectPath, blockCount: this.context.blockCount},
+        ctx: {
+          entry: this.context.entry,
+          packagePath: this.context.projectPath,
+          blockCount: this.context.blockCount,
+        },
       })
     })
   }
