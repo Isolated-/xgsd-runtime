@@ -180,16 +180,6 @@ export class ProcessManager {
         resolve(result)
       }
 
-      const resetTimer = (ms: number) => {
-        if (!this.timeoutMs) return
-
-        if (timer) {
-          clearTimeout(timer)
-        }
-
-        timer = setTimeout(timerHandler, ms)
-      }
-
       const timerHandler = () => {
         // ONLY hard-kill on timeout
         this.process.kill()
@@ -213,19 +203,25 @@ export class ProcessManager {
         })
       }
 
-      if (this.timeoutMs) {
-        resetTimer(this.timeoutMs)
+      const resetTimer = () => {
+        if (!this.timeoutMs) return
+
+        if (timer) clearTimeout(timer)
+
+        timer = setTimeout(timerHandler, this.timeoutMs)
       }
 
       this.process.on('message', async (msg: any) => {
         switch (msg.type) {
           case `${prefix}:EVENT`: {
-            if (msg.event === BlockEvent.Started || msg.event === BlockEvent.Ended) {
-              resetTimer(this.timeoutMs!)
+            if (msg.event === BlockEvent.Started) {
+              resetTimer()
             }
 
             if (msg.event === BlockEvent.Retrying) {
-              resetTimer(this.timeoutMs! + msg.payload.attempt.nextMs + 500)
+              const {attempt} = msg.payload
+              if (!attempt.finalAttempt) resetTimer()
+              if (attempt.finalAttempt) this.process.kill()
             }
 
             await this.context.bus.emit(msg.event, {
@@ -237,7 +233,7 @@ export class ProcessManager {
           }
 
           case `${prefix}:LOG`: {
-            resetTimer(this.timeoutMs! + 1000)
+            resetTimer()
 
             log(msg.log.message, msg.log.level, this.context, this.block)
 
