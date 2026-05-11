@@ -1,7 +1,7 @@
 {
   "name": "@xgsd/runtime",
   "description": "lightweight orchestration library used by xGSD apps",
-  "version": "0.1.0",
+  "version": "0.0.0-dev",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
